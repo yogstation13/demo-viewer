@@ -23,7 +23,7 @@ body .right_panel {
   top: 0px;
   right: 0px;
   bottom: 0px;
-  background-color: #888888;
+  background-color: #383c44;
   padding: 5px;
   box-sizing: border-box;
 }
@@ -32,17 +32,9 @@ body .right_panel .scrub_slider {
   margin: 0px;
   display: block;
 }
-table {
-  border: 3px solid #cccccc;
-}
-td {
-  border: 1px solid #888888;
-}
-tr,
-td {
-  padding: 0px;
-}
-table,
-tr {
-  margin: 0px;
+body .inspect_table {
+  height: 400px;
+  width: 100%;
+  overflow: auto;
+  background-color: #484c54;
 }
