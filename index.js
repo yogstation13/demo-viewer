@@ -7,11 +7,40 @@ document.addEventListener("DOMContentLoaded", async function() {
 	let querystring = new URLSearchParams(window.location.search);
 	if(querystring.has("demo_url")) {
 		url = querystring.get("demo_url");
-	} else {
+	} else if(querystring.has("roundid")) {
 		url = window.demo_url_template.replace(/\{roundid}/g, querystring.get("roundid"));
 	}
-	if(!url) return;
-	let demo = await load_demo(url);
+	if(url) {
+		let response = await fetch(url);
+		let data = await response.arrayBuffer();
+		run_demo(url);
+	} else {
+		let running = false;
+		let fileselect = document.createElement("input");
+		fileselect.type = "file";
+		let button = document.createElement("input");
+		button.type = "button";
+		button.value = "Open demo from file";
+		button.addEventListener("click", () => {
+			if(!fileselect.files[0]) return;
+			if(running) return;
+			let reader = new FileReader();
+			reader.onload = () => {
+				if(running) return;
+				let buf = reader.result;
+				running = true;
+				document.body.innerHTML = "";
+				run_demo(buf);
+			};
+			reader.readAsArrayBuffer(fileselect.files[0]);
+		});
+		document.body.appendChild(fileselect);
+		document.body.appendChild(button);
+	}
+});
+
+async function run_demo(buf) {
+	let demo = await load_demo(buf);
 	console.log(demo);
 
 	let turfs = new Map();
@@ -32,4 +61,4 @@ document.addEventListener("DOMContentLoaded", async function() {
 	await Promise.all(icon_promises);
 	console.log(icons);
 	window.demo_player = new DemoPlayer(demo, icons);
-});
+}
