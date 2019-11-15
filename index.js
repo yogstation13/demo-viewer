@@ -5,15 +5,22 @@ const DemoPlayer = require('./lib/player.js');
 document.addEventListener("DOMContentLoaded", async function() {
 	let url = null;
 	let querystring = new URLSearchParams(window.location.search);
+	let status_holder = document.createElement("h1");
 	if(querystring.has("demo_url")) {
 		url = querystring.get("demo_url");
 	} else if(querystring.has("roundid")) {
 		url = window.demo_url_template.replace(/\{roundid}/g, querystring.get("roundid"));
 	}
 	if(url) {
-		let response = await fetch(url, {credentials: +querystring.get('send_credentials') ? 'include' : 'same-origin'});
-		let data = await response.arrayBuffer();
-		run_demo(data);
+		document.body.appendChild(status_holder);
+		status_holder.textContent = "Fetching demo file...";
+		try {
+			let response = await fetch(url, {credentials: +querystring.get('send_credentials') ? 'include' : 'same-origin'});
+			let data = await response.arrayBuffer();
+			run_demo(data, status_holder);
+		} catch(e) {
+			status_holder.textContent = `${e}`;
+		}
 	} else {
 		let running = false;
 		let fileselect = document.createElement("input");
@@ -30,7 +37,8 @@ document.addEventListener("DOMContentLoaded", async function() {
 				let buf = reader.result;
 				running = true;
 				document.body.innerHTML = "";
-				run_demo(buf);
+				document.body.appendChild(status_holder);
+				run_demo(buf, status_holder);
 			};
 			reader.readAsArrayBuffer(fileselect.files[0]);
 		});
@@ -39,13 +47,16 @@ document.addEventListener("DOMContentLoaded", async function() {
 	}
 });
 
-async function run_demo(buf) {
+async function run_demo(buf, status_holder) {
+	status_holder.textContent = "Parsing demo file...";
 	let demo = await load_demo(buf);
 	console.log(demo);
 
+	status_holder.textContent = "Downloading icons...";
 	let turfs = new Map();
 	let icons = new Map();
 	let icon_promises = [];
+	let completed = 0;
 	for(let icon of demo.icons_used) {
 		icon_promises.push((async () => {
 			let url = "https://cdn.jsdelivr.net/gh/" + window.repository + "@" + demo.commit + "/" + icon;
@@ -55,6 +66,9 @@ async function run_demo(buf) {
 				icons.set(icon, icon_obj);
 			} catch(e) {
 				console.error(e);
+			} finally {
+				completed++;
+				status_holder.textContent = "Downloading icons..." + (completed * 100 / demo.icons_used.length).toFixed(1) + "%";
 			}
 		})());
 	}
