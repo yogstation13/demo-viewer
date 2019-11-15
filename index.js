@@ -11,9 +11,9 @@ document.addEventListener("DOMContentLoaded", async function() {
 		url = window.demo_url_template.replace(/\{roundid}/g, querystring.get("roundid"));
 	}
 	if(url) {
-		let response = await fetch(url);
+		let response = await fetch(url, {credentials: +querystring.get('send_credentials') ? 'include' : 'same-origin'});
 		let data = await response.arrayBuffer();
-		run_demo(url);
+		run_demo(data);
 	} else {
 		let running = false;
 		let fileselect = document.createElement("input");
