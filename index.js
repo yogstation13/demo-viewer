@@ -73,6 +73,13 @@ async function run_demo(buf, status_holder) {
 		})());
 	}
 	await Promise.all(icon_promises);
+	let chat_css = await (await fetch("https://cdn.jsdelivr.net/gh/" + window.repository + "@" + demo.commit + "/code/modules/goonchat/browserassets/css/browserOutput.css")).text();
+	chat_css = chat_css.replace(/((?:^|[},])[^\@\{]*?)([a-zA-Z.#\[\]":=\-_][a-zA-Z0-9.# \[\]":=\-_]*)(?=.+\{)/g, "$1.chat_window $2");
+	chat_css = chat_css.replace(/height: [^;]+%;/g, "");
+	chat_css = chat_css.replace(/ ?html| ?body/g, "");
+	let style = document.createElement("style");
+	style.innerHTML = chat_css;
+	document.head.appendChild(style);
 	console.log(icons);
 	window.demo_player = new DemoPlayer(demo, icons);
 }

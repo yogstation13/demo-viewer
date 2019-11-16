@@ -26,15 +26,26 @@ body .right_panel {
   background-color: #383c44;
   padding: 5px;
   box-sizing: border-box;
+  display: flex;
+  flex-flow: column;
 }
-body .right_panel .scrub_slider {
+body .right_panel .controls {
+  flex: 0 0 auto;
+}
+body .right_panel .controls .scrub_slider {
   width: 100%;
   margin: 0px;
   display: block;
 }
-body .inspect_table {
-  height: 400px;
-  width: 100%;
+body .right_panel .inspect_table {
   overflow: auto;
   background-color: #484c54;
+  flex: 0 0 400px;
+}
+body .right_panel .chat_window {
+  flex: 1 1 auto;
+  overflow: auto;
+}
+body .right_panel .chat_window a {
+  pointer-events: none;
 }

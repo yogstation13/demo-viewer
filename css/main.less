@@ -26,16 +26,27 @@ body {
 		background-color: #383c44;
 		padding: 5px;
 		box-sizing: border-box;
-		.scrub_slider {
-			width: 100%;
-			margin: 0px;
-			display: block;
+		display: flex;
+		flex-flow: column;
+		.controls {
+			.scrub_slider {
+				width: 100%;
+				margin: 0px;
+				display: block;
+			}
+			flex: 0 0 auto;
 		}
-	}
-	.inspect_table {
-		height: 400px;
-		width: 100%;
-		overflow: auto;
-		background-color: #484c54
+		.inspect_table {
+			overflow: auto;
+			background-color: #484c54;
+			flex: 0 0 400px;
+		}
+		.chat_window {
+			flex: 1 1 auto;
+			overflow: auto;
+			a {
+				pointer-events: none;
+			}
+		}
 	}
 }
