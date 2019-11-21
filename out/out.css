@@ -8,7 +8,6 @@ body .main_panel {
   position: absolute;
   left: 0px;
   top: 0px;
-  background-color: black;
 }
 body .main_panel .fill_canvas {
   position: absolute;
