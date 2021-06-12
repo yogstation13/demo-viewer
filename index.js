@@ -43,6 +43,11 @@ document.addEventListener("DOMContentLoaded", async function() {
 	}
 });
 
+let css_paths = [
+	"code/modules/goonchat/browserassets/css/browserOutput.css",
+	"tgui/packages/tgui-panel/styles/goon/chat-dark.scss",
+]
+
 async function run_demo(source, status_holder) {
 	status_holder.textContent = "Parsing demo file...";
 	let demo = new Demo(source);
@@ -68,7 +73,20 @@ async function run_demo(source, status_holder) {
 		})());
 	}
 	await Promise.all(icon_promises);*/
-	let chat_css = await (await fetch("https://cdn.jsdelivr.net/gh/" + window.repository + "@" + demo.commit + "/code/modules/goonchat/browserassets/css/browserOutput.css")).text();
+	window.demo_player = new DemoPlayer(demo, demo.loaded_icons);
+
+	let chat_css = "";
+	for(let path of css_paths) {
+		try {
+			let res = await fetch("https://cdn.jsdelivr.net/gh/" + window.repository + "@" + demo.commit + "/" + path);
+			if(res.status == 200) {
+				chat_css = await res.text();
+			}
+		} catch(e) {
+			console.error(e);
+		}
+		
+	}
 	chat_css = chat_css.replace(/((?:^|[},])[^\@\{]*?)([a-zA-Z.#\[\]":=\-_][a-zA-Z0-9.# \[\]":=\-_]*)(?=.+\{)/g, "$1.chat_window $2");
 	chat_css = chat_css.replace(/height: [^;]+%;/g, "");
 	chat_css = chat_css.replace(/ ?html| ?body/g, "");
@@ -76,5 +94,4 @@ async function run_demo(source, status_holder) {
 	style.innerHTML = chat_css;
 	document.head.appendChild(style);
 	//console.log(icons);
-	window.demo_player = new DemoPlayer(demo, demo.loaded_icons);
 }
