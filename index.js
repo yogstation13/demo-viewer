@@ -1,6 +1,7 @@
 'use strict';
 const Demo = require('./lib/loader.js');
 const DemoPlayer = require('./lib/player.js');
+require('./css/main.scss');
 document.addEventListener("DOMContentLoaded", async function() {
 	let url = null;
 	let querystring = new URLSearchParams(window.location.search);
