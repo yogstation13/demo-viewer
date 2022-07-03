@@ -287,17 +287,17 @@ var INSPECT_MAX_BYTES = 50;
  * We detect these buggy browsers and set `Buffer.TYPED_ARRAY_SUPPORT` to `false` so they
  * get the Object implementation, which is slower but behaves correctly.
  */
-Buffer$1.TYPED_ARRAY_SUPPORT = global$1.TYPED_ARRAY_SUPPORT !== undefined
+Buffer.TYPED_ARRAY_SUPPORT = global$1.TYPED_ARRAY_SUPPORT !== undefined
   ? global$1.TYPED_ARRAY_SUPPORT
   : true;
 
 /*
  * Export kMaxLength after typed array support is determined.
  */
-var _kMaxLength = kMaxLength();
+kMaxLength();
 
 function kMaxLength () {
-  return Buffer$1.TYPED_ARRAY_SUPPORT
+  return Buffer.TYPED_ARRAY_SUPPORT
     ? 0x7fffffff
     : 0x3fffffff
 }
@@ -306,14 +306,14 @@ function createBuffer (that, length) {
   if (kMaxLength() < length) {
     throw new RangeError('Invalid typed array length')
   }
-  if (Buffer$1.TYPED_ARRAY_SUPPORT) {
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
     // Return an augmented `Uint8Array` instance, for best performance
     that = new Uint8Array(length);
-    that.__proto__ = Buffer$1.prototype;
+    that.__proto__ = Buffer.prototype;
   } else {
     // Fallback: Return an object instance of the Buffer class
     if (that === null) {
-      that = new Buffer$1(length);
+      that = new Buffer(length);
     }
     that.length = length;
   }
@@ -331,9 +331,9 @@ function createBuffer (that, length) {
  * The `Uint8Array` prototype remains unmodified.
  */
 
-function Buffer$1 (arg, encodingOrOffset, length) {
-  if (!Buffer$1.TYPED_ARRAY_SUPPORT && !(this instanceof Buffer$1)) {
-    return new Buffer$1(arg, encodingOrOffset, length)
+function Buffer (arg, encodingOrOffset, length) {
+  if (!Buffer.TYPED_ARRAY_SUPPORT && !(this instanceof Buffer)) {
+    return new Buffer(arg, encodingOrOffset, length)
   }
 
   // Common case.
@@ -348,11 +348,11 @@ function Buffer$1 (arg, encodingOrOffset, length) {
   return from(this, arg, encodingOrOffset, length)
 }
 
-Buffer$1.poolSize = 8192; // not used by this implementation
+Buffer.poolSize = 8192; // not used by this implementation
 
 // TODO: Legacy, not needed anymore. Remove in next major version.
-Buffer$1._augment = function (arr) {
-  arr.__proto__ = Buffer$1.prototype;
+Buffer._augment = function (arr) {
+  arr.__proto__ = Buffer.prototype;
   return arr
 };
 
@@ -380,13 +380,13 @@ function from (that, value, encodingOrOffset, length) {
  * Buffer.from(buffer)
  * Buffer.from(arrayBuffer[, byteOffset[, length]])
  **/
-Buffer$1.from = function (value, encodingOrOffset, length) {
+Buffer.from = function (value, encodingOrOffset, length) {
   return from(null, value, encodingOrOffset, length)
 };
 
-if (Buffer$1.TYPED_ARRAY_SUPPORT) {
-  Buffer$1.prototype.__proto__ = Uint8Array.prototype;
-  Buffer$1.__proto__ = Uint8Array;
+if (Buffer.TYPED_ARRAY_SUPPORT) {
+  Buffer.prototype.__proto__ = Uint8Array.prototype;
+  Buffer.__proto__ = Uint8Array;
 }
 
 function assertSize (size) {
@@ -417,14 +417,14 @@ function alloc (that, size, fill, encoding) {
  * Creates a new filled Buffer instance.
  * alloc(size[, fill[, encoding]])
  **/
-Buffer$1.alloc = function (size, fill, encoding) {
+Buffer.alloc = function (size, fill, encoding) {
   return alloc(null, size, fill, encoding)
 };
 
 function allocUnsafe (that, size) {
   assertSize(size);
   that = createBuffer(that, size < 0 ? 0 : checked(size) | 0);
-  if (!Buffer$1.TYPED_ARRAY_SUPPORT) {
+  if (!Buffer.TYPED_ARRAY_SUPPORT) {
     for (var i = 0; i < size; ++i) {
       that[i] = 0;
     }
@@ -435,13 +435,13 @@ function allocUnsafe (that, size) {
 /**
  * Equivalent to Buffer(num), by default creates a non-zero-filled Buffer instance.
  * */
-Buffer$1.allocUnsafe = function (size) {
+Buffer.allocUnsafe = function (size) {
   return allocUnsafe(null, size)
 };
 /**
  * Equivalent to SlowBuffer(num), by default creates a non-zero-filled Buffer instance.
  */
-Buffer$1.allocUnsafeSlow = function (size) {
+Buffer.allocUnsafeSlow = function (size) {
   return allocUnsafe(null, size)
 };
 
@@ -450,7 +450,7 @@ function fromString (that, string, encoding) {
     encoding = 'utf8';
   }
 
-  if (!Buffer$1.isEncoding(encoding)) {
+  if (!Buffer.isEncoding(encoding)) {
     throw new TypeError('"encoding" must be a valid string encoding')
   }
 
@@ -497,10 +497,10 @@ function fromArrayBuffer (that, array, byteOffset, length) {
     array = new Uint8Array(array, byteOffset, length);
   }
 
-  if (Buffer$1.TYPED_ARRAY_SUPPORT) {
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
     // Return an augmented `Uint8Array` instance, for best performance
     that = array;
-    that.__proto__ = Buffer$1.prototype;
+    that.__proto__ = Buffer.prototype;
   } else {
     // Fallback: Return an object instance of the Buffer class
     that = fromArrayLike(that, array);
@@ -547,19 +547,12 @@ function checked (length) {
   }
   return length | 0
 }
-
-function SlowBuffer (length) {
-  if (+length != length) { // eslint-disable-line eqeqeq
-    length = 0;
-  }
-  return Buffer$1.alloc(+length)
-}
-Buffer$1.isBuffer = isBuffer;
+Buffer.isBuffer = isBuffer;
 function internalIsBuffer (b) {
   return !!(b != null && b._isBuffer)
 }
 
-Buffer$1.compare = function compare (a, b) {
+Buffer.compare = function compare (a, b) {
   if (!internalIsBuffer(a) || !internalIsBuffer(b)) {
     throw new TypeError('Arguments must be Buffers')
   }
@@ -582,7 +575,7 @@ Buffer$1.compare = function compare (a, b) {
   return 0
 };
 
-Buffer$1.isEncoding = function isEncoding (encoding) {
+Buffer.isEncoding = function isEncoding (encoding) {
   switch (String(encoding).toLowerCase()) {
     case 'hex':
     case 'utf8':
@@ -601,13 +594,13 @@ Buffer$1.isEncoding = function isEncoding (encoding) {
   }
 };
 
-Buffer$1.concat = function concat (list, length) {
+Buffer.concat = function concat (list, length) {
   if (!isArray$1(list)) {
     throw new TypeError('"list" argument must be an Array of Buffers')
   }
 
   if (list.length === 0) {
-    return Buffer$1.alloc(0)
+    return Buffer.alloc(0)
   }
 
   var i;
@@ -618,7 +611,7 @@ Buffer$1.concat = function concat (list, length) {
     }
   }
 
-  var buffer = Buffer$1.allocUnsafe(length);
+  var buffer = Buffer.allocUnsafe(length);
   var pos = 0;
   for (i = 0; i < list.length; ++i) {
     var buf = list[i];
@@ -674,7 +667,7 @@ function byteLength (string, encoding) {
     }
   }
 }
-Buffer$1.byteLength = byteLength;
+Buffer.byteLength = byteLength;
 
 function slowToString (encoding, start, end) {
   var loweredCase = false;
@@ -748,7 +741,7 @@ function slowToString (encoding, start, end) {
 
 // The property is used by `Buffer.isBuffer` and `is-buffer` (in Safari 5-7) to detect
 // Buffer instances.
-Buffer$1.prototype._isBuffer = true;
+Buffer.prototype._isBuffer = true;
 
 function swap (b, n, m) {
   var i = b[n];
@@ -756,7 +749,7 @@ function swap (b, n, m) {
   b[m] = i;
 }
 
-Buffer$1.prototype.swap16 = function swap16 () {
+Buffer.prototype.swap16 = function swap16 () {
   var len = this.length;
   if (len % 2 !== 0) {
     throw new RangeError('Buffer size must be a multiple of 16-bits')
@@ -767,7 +760,7 @@ Buffer$1.prototype.swap16 = function swap16 () {
   return this
 };
 
-Buffer$1.prototype.swap32 = function swap32 () {
+Buffer.prototype.swap32 = function swap32 () {
   var len = this.length;
   if (len % 4 !== 0) {
     throw new RangeError('Buffer size must be a multiple of 32-bits')
@@ -779,7 +772,7 @@ Buffer$1.prototype.swap32 = function swap32 () {
   return this
 };
 
-Buffer$1.prototype.swap64 = function swap64 () {
+Buffer.prototype.swap64 = function swap64 () {
   var len = this.length;
   if (len % 8 !== 0) {
     throw new RangeError('Buffer size must be a multiple of 64-bits')
@@ -793,20 +786,20 @@ Buffer$1.prototype.swap64 = function swap64 () {
   return this
 };
 
-Buffer$1.prototype.toString = function toString () {
+Buffer.prototype.toString = function toString () {
   var length = this.length | 0;
   if (length === 0) return ''
   if (arguments.length === 0) return utf8Slice(this, 0, length)
   return slowToString.apply(this, arguments)
 };
 
-Buffer$1.prototype.equals = function equals (b) {
+Buffer.prototype.equals = function equals (b) {
   if (!internalIsBuffer(b)) throw new TypeError('Argument must be a Buffer')
   if (this === b) return true
-  return Buffer$1.compare(this, b) === 0
+  return Buffer.compare(this, b) === 0
 };
 
-Buffer$1.prototype.inspect = function inspect () {
+Buffer.prototype.inspect = function inspect () {
   var str = '';
   var max = INSPECT_MAX_BYTES;
   if (this.length > 0) {
@@ -816,7 +809,7 @@ Buffer$1.prototype.inspect = function inspect () {
   return '<Buffer ' + str + '>'
 };
 
-Buffer$1.prototype.compare = function compare (target, start, end, thisStart, thisEnd) {
+Buffer.prototype.compare = function compare (target, start, end, thisStart, thisEnd) {
   if (!internalIsBuffer(target)) {
     throw new TypeError('Argument must be a Buffer')
   }
@@ -915,7 +908,7 @@ function bidirectionalIndexOf (buffer, val, byteOffset, encoding, dir) {
 
   // Normalize val
   if (typeof val === 'string') {
-    val = Buffer$1.from(val, encoding);
+    val = Buffer.from(val, encoding);
   }
 
   // Finally, search either indexOf (if dir is true) or lastIndexOf
@@ -927,7 +920,7 @@ function bidirectionalIndexOf (buffer, val, byteOffset, encoding, dir) {
     return arrayIndexOf(buffer, val, byteOffset, encoding, dir)
   } else if (typeof val === 'number') {
     val = val & 0xFF; // Search for a byte value [0-255]
-    if (Buffer$1.TYPED_ARRAY_SUPPORT &&
+    if (Buffer.TYPED_ARRAY_SUPPORT &&
         typeof Uint8Array.prototype.indexOf === 'function') {
       if (dir) {
         return Uint8Array.prototype.indexOf.call(buffer, val, byteOffset)
@@ -997,15 +990,15 @@ function arrayIndexOf (arr, val, byteOffset, encoding, dir) {
   return -1
 }
 
-Buffer$1.prototype.includes = function includes (val, byteOffset, encoding) {
+Buffer.prototype.includes = function includes (val, byteOffset, encoding) {
   return this.indexOf(val, byteOffset, encoding) !== -1
 };
 
-Buffer$1.prototype.indexOf = function indexOf (val, byteOffset, encoding) {
+Buffer.prototype.indexOf = function indexOf (val, byteOffset, encoding) {
   return bidirectionalIndexOf(this, val, byteOffset, encoding, true)
 };
 
-Buffer$1.prototype.lastIndexOf = function lastIndexOf (val, byteOffset, encoding) {
+Buffer.prototype.lastIndexOf = function lastIndexOf (val, byteOffset, encoding) {
   return bidirectionalIndexOf(this, val, byteOffset, encoding, false)
 };
 
@@ -1056,7 +1049,7 @@ function ucs2Write (buf, string, offset, length) {
   return blitBuffer(utf16leToBytes(string, buf.length - offset), buf, offset, length)
 }
 
-Buffer$1.prototype.write = function write (string, offset, length, encoding) {
+Buffer.prototype.write = function write (string, offset, length, encoding) {
   // Buffer#write(string)
   if (offset === undefined) {
     encoding = 'utf8';
@@ -1128,7 +1121,7 @@ Buffer$1.prototype.write = function write (string, offset, length, encoding) {
   }
 };
 
-Buffer$1.prototype.toJSON = function toJSON () {
+Buffer.prototype.toJSON = function toJSON () {
   return {
     type: 'Buffer',
     data: Array.prototype.slice.call(this._arr || this, 0)
@@ -1281,7 +1274,7 @@ function utf16leSlice (buf, start, end) {
   return res
 }
 
-Buffer$1.prototype.slice = function slice (start, end) {
+Buffer.prototype.slice = function slice (start, end) {
   var len = this.length;
   start = ~~start;
   end = end === undefined ? len : ~~end;
@@ -1303,12 +1296,12 @@ Buffer$1.prototype.slice = function slice (start, end) {
   if (end < start) end = start;
 
   var newBuf;
-  if (Buffer$1.TYPED_ARRAY_SUPPORT) {
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
     newBuf = this.subarray(start, end);
-    newBuf.__proto__ = Buffer$1.prototype;
+    newBuf.__proto__ = Buffer.prototype;
   } else {
     var sliceLen = end - start;
-    newBuf = new Buffer$1(sliceLen, undefined);
+    newBuf = new Buffer(sliceLen, undefined);
     for (var i = 0; i < sliceLen; ++i) {
       newBuf[i] = this[i + start];
     }
@@ -1325,7 +1318,7 @@ function checkOffset (offset, ext, length) {
   if (offset + ext > length) throw new RangeError('Trying to access beyond buffer length')
 }
 
-Buffer$1.prototype.readUIntLE = function readUIntLE (offset, byteLength, noAssert) {
+Buffer.prototype.readUIntLE = function readUIntLE (offset, byteLength, noAssert) {
   offset = offset | 0;
   byteLength = byteLength | 0;
   if (!noAssert) checkOffset(offset, byteLength, this.length);
@@ -1340,7 +1333,7 @@ Buffer$1.prototype.readUIntLE = function readUIntLE (offset, byteLength, noAsser
   return val
 };
 
-Buffer$1.prototype.readUIntBE = function readUIntBE (offset, byteLength, noAssert) {
+Buffer.prototype.readUIntBE = function readUIntBE (offset, byteLength, noAssert) {
   offset = offset | 0;
   byteLength = byteLength | 0;
   if (!noAssert) {
@@ -1356,22 +1349,22 @@ Buffer$1.prototype.readUIntBE = function readUIntBE (offset, byteLength, noAsser
   return val
 };
 
-Buffer$1.prototype.readUInt8 = function readUInt8 (offset, noAssert) {
+Buffer.prototype.readUInt8 = function readUInt8 (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 1, this.length);
   return this[offset]
 };
 
-Buffer$1.prototype.readUInt16LE = function readUInt16LE (offset, noAssert) {
+Buffer.prototype.readUInt16LE = function readUInt16LE (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 2, this.length);
   return this[offset] | (this[offset + 1] << 8)
 };
 
-Buffer$1.prototype.readUInt16BE = function readUInt16BE (offset, noAssert) {
+Buffer.prototype.readUInt16BE = function readUInt16BE (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 2, this.length);
   return (this[offset] << 8) | this[offset + 1]
 };
 
-Buffer$1.prototype.readUInt32LE = function readUInt32LE (offset, noAssert) {
+Buffer.prototype.readUInt32LE = function readUInt32LE (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 4, this.length);
 
   return ((this[offset]) |
@@ -1380,7 +1373,7 @@ Buffer$1.prototype.readUInt32LE = function readUInt32LE (offset, noAssert) {
       (this[offset + 3] * 0x1000000)
 };
 
-Buffer$1.prototype.readUInt32BE = function readUInt32BE (offset, noAssert) {
+Buffer.prototype.readUInt32BE = function readUInt32BE (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 4, this.length);
 
   return (this[offset] * 0x1000000) +
@@ -1389,7 +1382,7 @@ Buffer$1.prototype.readUInt32BE = function readUInt32BE (offset, noAssert) {
     this[offset + 3])
 };
 
-Buffer$1.prototype.readIntLE = function readIntLE (offset, byteLength, noAssert) {
+Buffer.prototype.readIntLE = function readIntLE (offset, byteLength, noAssert) {
   offset = offset | 0;
   byteLength = byteLength | 0;
   if (!noAssert) checkOffset(offset, byteLength, this.length);
@@ -1407,7 +1400,7 @@ Buffer$1.prototype.readIntLE = function readIntLE (offset, byteLength, noAssert)
   return val
 };
 
-Buffer$1.prototype.readIntBE = function readIntBE (offset, byteLength, noAssert) {
+Buffer.prototype.readIntBE = function readIntBE (offset, byteLength, noAssert) {
   offset = offset | 0;
   byteLength = byteLength | 0;
   if (!noAssert) checkOffset(offset, byteLength, this.length);
@@ -1425,25 +1418,25 @@ Buffer$1.prototype.readIntBE = function readIntBE (offset, byteLength, noAssert)
   return val
 };
 
-Buffer$1.prototype.readInt8 = function readInt8 (offset, noAssert) {
+Buffer.prototype.readInt8 = function readInt8 (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 1, this.length);
   if (!(this[offset] & 0x80)) return (this[offset])
   return ((0xff - this[offset] + 1) * -1)
 };
 
-Buffer$1.prototype.readInt16LE = function readInt16LE (offset, noAssert) {
+Buffer.prototype.readInt16LE = function readInt16LE (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 2, this.length);
   var val = this[offset] | (this[offset + 1] << 8);
   return (val & 0x8000) ? val | 0xFFFF0000 : val
 };
 
-Buffer$1.prototype.readInt16BE = function readInt16BE (offset, noAssert) {
+Buffer.prototype.readInt16BE = function readInt16BE (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 2, this.length);
   var val = this[offset + 1] | (this[offset] << 8);
   return (val & 0x8000) ? val | 0xFFFF0000 : val
 };
 
-Buffer$1.prototype.readInt32LE = function readInt32LE (offset, noAssert) {
+Buffer.prototype.readInt32LE = function readInt32LE (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 4, this.length);
 
   return (this[offset]) |
@@ -1452,7 +1445,7 @@ Buffer$1.prototype.readInt32LE = function readInt32LE (offset, noAssert) {
     (this[offset + 3] << 24)
 };
 
-Buffer$1.prototype.readInt32BE = function readInt32BE (offset, noAssert) {
+Buffer.prototype.readInt32BE = function readInt32BE (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 4, this.length);
 
   return (this[offset] << 24) |
@@ -1461,22 +1454,22 @@ Buffer$1.prototype.readInt32BE = function readInt32BE (offset, noAssert) {
     (this[offset + 3])
 };
 
-Buffer$1.prototype.readFloatLE = function readFloatLE (offset, noAssert) {
+Buffer.prototype.readFloatLE = function readFloatLE (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 4, this.length);
   return read(this, offset, true, 23, 4)
 };
 
-Buffer$1.prototype.readFloatBE = function readFloatBE (offset, noAssert) {
+Buffer.prototype.readFloatBE = function readFloatBE (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 4, this.length);
   return read(this, offset, false, 23, 4)
 };
 
-Buffer$1.prototype.readDoubleLE = function readDoubleLE (offset, noAssert) {
+Buffer.prototype.readDoubleLE = function readDoubleLE (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 8, this.length);
   return read(this, offset, true, 52, 8)
 };
 
-Buffer$1.prototype.readDoubleBE = function readDoubleBE (offset, noAssert) {
+Buffer.prototype.readDoubleBE = function readDoubleBE (offset, noAssert) {
   if (!noAssert) checkOffset(offset, 8, this.length);
   return read(this, offset, false, 52, 8)
 };
@@ -1487,7 +1480,7 @@ function checkInt (buf, value, offset, ext, max, min) {
   if (offset + ext > buf.length) throw new RangeError('Index out of range')
 }
 
-Buffer$1.prototype.writeUIntLE = function writeUIntLE (value, offset, byteLength, noAssert) {
+Buffer.prototype.writeUIntLE = function writeUIntLE (value, offset, byteLength, noAssert) {
   value = +value;
   offset = offset | 0;
   byteLength = byteLength | 0;
@@ -1506,7 +1499,7 @@ Buffer$1.prototype.writeUIntLE = function writeUIntLE (value, offset, byteLength
   return offset + byteLength
 };
 
-Buffer$1.prototype.writeUIntBE = function writeUIntBE (value, offset, byteLength, noAssert) {
+Buffer.prototype.writeUIntBE = function writeUIntBE (value, offset, byteLength, noAssert) {
   value = +value;
   offset = offset | 0;
   byteLength = byteLength | 0;
@@ -1525,11 +1518,11 @@ Buffer$1.prototype.writeUIntBE = function writeUIntBE (value, offset, byteLength
   return offset + byteLength
 };
 
-Buffer$1.prototype.writeUInt8 = function writeUInt8 (value, offset, noAssert) {
+Buffer.prototype.writeUInt8 = function writeUInt8 (value, offset, noAssert) {
   value = +value;
   offset = offset | 0;
   if (!noAssert) checkInt(this, value, offset, 1, 0xff, 0);
-  if (!Buffer$1.TYPED_ARRAY_SUPPORT) value = Math.floor(value);
+  if (!Buffer.TYPED_ARRAY_SUPPORT) value = Math.floor(value);
   this[offset] = (value & 0xff);
   return offset + 1
 };
@@ -1542,11 +1535,11 @@ function objectWriteUInt16 (buf, value, offset, littleEndian) {
   }
 }
 
-Buffer$1.prototype.writeUInt16LE = function writeUInt16LE (value, offset, noAssert) {
+Buffer.prototype.writeUInt16LE = function writeUInt16LE (value, offset, noAssert) {
   value = +value;
   offset = offset | 0;
   if (!noAssert) checkInt(this, value, offset, 2, 0xffff, 0);
-  if (Buffer$1.TYPED_ARRAY_SUPPORT) {
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value & 0xff);
     this[offset + 1] = (value >>> 8);
   } else {
@@ -1555,11 +1548,11 @@ Buffer$1.prototype.writeUInt16LE = function writeUInt16LE (value, offset, noAsse
   return offset + 2
 };
 
-Buffer$1.prototype.writeUInt16BE = function writeUInt16BE (value, offset, noAssert) {
+Buffer.prototype.writeUInt16BE = function writeUInt16BE (value, offset, noAssert) {
   value = +value;
   offset = offset | 0;
   if (!noAssert) checkInt(this, value, offset, 2, 0xffff, 0);
-  if (Buffer$1.TYPED_ARRAY_SUPPORT) {
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value >>> 8);
     this[offset + 1] = (value & 0xff);
   } else {
@@ -1575,11 +1568,11 @@ function objectWriteUInt32 (buf, value, offset, littleEndian) {
   }
 }
 
-Buffer$1.prototype.writeUInt32LE = function writeUInt32LE (value, offset, noAssert) {
+Buffer.prototype.writeUInt32LE = function writeUInt32LE (value, offset, noAssert) {
   value = +value;
   offset = offset | 0;
   if (!noAssert) checkInt(this, value, offset, 4, 0xffffffff, 0);
-  if (Buffer$1.TYPED_ARRAY_SUPPORT) {
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset + 3] = (value >>> 24);
     this[offset + 2] = (value >>> 16);
     this[offset + 1] = (value >>> 8);
@@ -1590,11 +1583,11 @@ Buffer$1.prototype.writeUInt32LE = function writeUInt32LE (value, offset, noAsse
   return offset + 4
 };
 
-Buffer$1.prototype.writeUInt32BE = function writeUInt32BE (value, offset, noAssert) {
+Buffer.prototype.writeUInt32BE = function writeUInt32BE (value, offset, noAssert) {
   value = +value;
   offset = offset | 0;
   if (!noAssert) checkInt(this, value, offset, 4, 0xffffffff, 0);
-  if (Buffer$1.TYPED_ARRAY_SUPPORT) {
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value >>> 24);
     this[offset + 1] = (value >>> 16);
     this[offset + 2] = (value >>> 8);
@@ -1605,7 +1598,7 @@ Buffer$1.prototype.writeUInt32BE = function writeUInt32BE (value, offset, noAsse
   return offset + 4
 };
 
-Buffer$1.prototype.writeIntLE = function writeIntLE (value, offset, byteLength, noAssert) {
+Buffer.prototype.writeIntLE = function writeIntLE (value, offset, byteLength, noAssert) {
   value = +value;
   offset = offset | 0;
   if (!noAssert) {
@@ -1628,7 +1621,7 @@ Buffer$1.prototype.writeIntLE = function writeIntLE (value, offset, byteLength, 
   return offset + byteLength
 };
 
-Buffer$1.prototype.writeIntBE = function writeIntBE (value, offset, byteLength, noAssert) {
+Buffer.prototype.writeIntBE = function writeIntBE (value, offset, byteLength, noAssert) {
   value = +value;
   offset = offset | 0;
   if (!noAssert) {
@@ -1651,21 +1644,21 @@ Buffer$1.prototype.writeIntBE = function writeIntBE (value, offset, byteLength, 
   return offset + byteLength
 };
 
-Buffer$1.prototype.writeInt8 = function writeInt8 (value, offset, noAssert) {
+Buffer.prototype.writeInt8 = function writeInt8 (value, offset, noAssert) {
   value = +value;
   offset = offset | 0;
   if (!noAssert) checkInt(this, value, offset, 1, 0x7f, -0x80);
-  if (!Buffer$1.TYPED_ARRAY_SUPPORT) value = Math.floor(value);
+  if (!Buffer.TYPED_ARRAY_SUPPORT) value = Math.floor(value);
   if (value < 0) value = 0xff + value + 1;
   this[offset] = (value & 0xff);
   return offset + 1
 };
 
-Buffer$1.prototype.writeInt16LE = function writeInt16LE (value, offset, noAssert) {
+Buffer.prototype.writeInt16LE = function writeInt16LE (value, offset, noAssert) {
   value = +value;
   offset = offset | 0;
   if (!noAssert) checkInt(this, value, offset, 2, 0x7fff, -0x8000);
-  if (Buffer$1.TYPED_ARRAY_SUPPORT) {
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value & 0xff);
     this[offset + 1] = (value >>> 8);
   } else {
@@ -1674,11 +1667,11 @@ Buffer$1.prototype.writeInt16LE = function writeInt16LE (value, offset, noAssert
   return offset + 2
 };
 
-Buffer$1.prototype.writeInt16BE = function writeInt16BE (value, offset, noAssert) {
+Buffer.prototype.writeInt16BE = function writeInt16BE (value, offset, noAssert) {
   value = +value;
   offset = offset | 0;
   if (!noAssert) checkInt(this, value, offset, 2, 0x7fff, -0x8000);
-  if (Buffer$1.TYPED_ARRAY_SUPPORT) {
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value >>> 8);
     this[offset + 1] = (value & 0xff);
   } else {
@@ -1687,11 +1680,11 @@ Buffer$1.prototype.writeInt16BE = function writeInt16BE (value, offset, noAssert
   return offset + 2
 };
 
-Buffer$1.prototype.writeInt32LE = function writeInt32LE (value, offset, noAssert) {
+Buffer.prototype.writeInt32LE = function writeInt32LE (value, offset, noAssert) {
   value = +value;
   offset = offset | 0;
   if (!noAssert) checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000);
-  if (Buffer$1.TYPED_ARRAY_SUPPORT) {
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value & 0xff);
     this[offset + 1] = (value >>> 8);
     this[offset + 2] = (value >>> 16);
@@ -1702,12 +1695,12 @@ Buffer$1.prototype.writeInt32LE = function writeInt32LE (value, offset, noAssert
   return offset + 4
 };
 
-Buffer$1.prototype.writeInt32BE = function writeInt32BE (value, offset, noAssert) {
+Buffer.prototype.writeInt32BE = function writeInt32BE (value, offset, noAssert) {
   value = +value;
   offset = offset | 0;
   if (!noAssert) checkInt(this, value, offset, 4, 0x7fffffff, -0x80000000);
   if (value < 0) value = 0xffffffff + value + 1;
-  if (Buffer$1.TYPED_ARRAY_SUPPORT) {
+  if (Buffer.TYPED_ARRAY_SUPPORT) {
     this[offset] = (value >>> 24);
     this[offset + 1] = (value >>> 16);
     this[offset + 2] = (value >>> 8);
@@ -1731,11 +1724,11 @@ function writeFloat (buf, value, offset, littleEndian, noAssert) {
   return offset + 4
 }
 
-Buffer$1.prototype.writeFloatLE = function writeFloatLE (value, offset, noAssert) {
+Buffer.prototype.writeFloatLE = function writeFloatLE (value, offset, noAssert) {
   return writeFloat(this, value, offset, true, noAssert)
 };
 
-Buffer$1.prototype.writeFloatBE = function writeFloatBE (value, offset, noAssert) {
+Buffer.prototype.writeFloatBE = function writeFloatBE (value, offset, noAssert) {
   return writeFloat(this, value, offset, false, noAssert)
 };
 
@@ -1747,16 +1740,16 @@ function writeDouble (buf, value, offset, littleEndian, noAssert) {
   return offset + 8
 }
 
-Buffer$1.prototype.writeDoubleLE = function writeDoubleLE (value, offset, noAssert) {
+Buffer.prototype.writeDoubleLE = function writeDoubleLE (value, offset, noAssert) {
   return writeDouble(this, value, offset, true, noAssert)
 };
 
-Buffer$1.prototype.writeDoubleBE = function writeDoubleBE (value, offset, noAssert) {
+Buffer.prototype.writeDoubleBE = function writeDoubleBE (value, offset, noAssert) {
   return writeDouble(this, value, offset, false, noAssert)
 };
 
 // copy(targetBuffer, targetStart=0, sourceStart=0, sourceEnd=buffer.length)
-Buffer$1.prototype.copy = function copy (target, targetStart, start, end) {
+Buffer.prototype.copy = function copy (target, targetStart, start, end) {
   if (!start) start = 0;
   if (!end && end !== 0) end = this.length;
   if (targetStart >= target.length) targetStart = target.length;
@@ -1788,7 +1781,7 @@ Buffer$1.prototype.copy = function copy (target, targetStart, start, end) {
     for (i = len - 1; i >= 0; --i) {
       target[i + targetStart] = this[i + start];
     }
-  } else if (len < 1000 || !Buffer$1.TYPED_ARRAY_SUPPORT) {
+  } else if (len < 1000 || !Buffer.TYPED_ARRAY_SUPPORT) {
     // ascending copy from start
     for (i = 0; i < len; ++i) {
       target[i + targetStart] = this[i + start];
@@ -1808,7 +1801,7 @@ Buffer$1.prototype.copy = function copy (target, targetStart, start, end) {
 //    buffer.fill(number[, offset[, end]])
 //    buffer.fill(buffer[, offset[, end]])
 //    buffer.fill(string[, offset[, end]][, encoding])
-Buffer$1.prototype.fill = function fill (val, start, end, encoding) {
+Buffer.prototype.fill = function fill (val, start, end, encoding) {
   // Handle string cases:
   if (typeof val === 'string') {
     if (typeof start === 'string') {
@@ -1828,7 +1821,7 @@ Buffer$1.prototype.fill = function fill (val, start, end, encoding) {
     if (encoding !== undefined && typeof encoding !== 'string') {
       throw new TypeError('encoding must be a string')
     }
-    if (typeof encoding === 'string' && !Buffer$1.isEncoding(encoding)) {
+    if (typeof encoding === 'string' && !Buffer.isEncoding(encoding)) {
       throw new TypeError('Unknown encoding: ' + encoding)
     }
   } else if (typeof val === 'number') {
@@ -1857,7 +1850,7 @@ Buffer$1.prototype.fill = function fill (val, start, end, encoding) {
   } else {
     var bytes = internalIsBuffer(val)
       ? val
-      : utf8ToBytes(new Buffer$1(val, encoding).toString());
+      : utf8ToBytes(new Buffer(val, encoding).toString());
     var len = bytes.length;
     for (i = 0; i < end - start; ++i) {
       this[i + start] = bytes[i % len];
@@ -2032,15 +2025,6 @@ function isFastBuffer (obj) {
 function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isFastBuffer(obj.slice(0, 0))
 }
-
-var _polyfillNode_buffer = /*#__PURE__*/Object.freeze({
-	__proto__: null,
-	Buffer: Buffer$1,
-	INSPECT_MAX_BYTES: INSPECT_MAX_BYTES,
-	SlowBuffer: SlowBuffer,
-	isBuffer: isBuffer,
-	kMaxLength: _kMaxLength
-});
 
 // shim for using process in browser
 // based off https://github.com/defunctzombie/node-process/blob/master/browser.js
@@ -3289,9 +3273,9 @@ BufferList.prototype.join = function (s) {
 };
 
 BufferList.prototype.concat = function (n) {
-  if (this.length === 0) return Buffer$1.alloc(0);
+  if (this.length === 0) return Buffer.alloc(0);
   if (this.length === 1) return this.head.data;
-  var ret = Buffer$1.allocUnsafe(n >>> 0);
+  var ret = Buffer.allocUnsafe(n >>> 0);
   var p = this.head;
   var i = 0;
   while (p) {
@@ -3303,7 +3287,7 @@ BufferList.prototype.concat = function (n) {
 };
 
 // Copyright Joyent, Inc. and other Node contributors.
-var isBufferEncoding = Buffer$1.isEncoding
+var isBufferEncoding = Buffer.isEncoding
   || function(encoding) {
        switch (encoding && encoding.toLowerCase()) {
          case 'hex': case 'utf8': case 'utf-8': case 'ascii': case 'binary': case 'base64': case 'ucs2': case 'ucs-2': case 'utf16le': case 'utf-16le': case 'raw': return true;
@@ -3352,7 +3336,7 @@ function StringDecoder(encoding) {
 
   // Enough space to store all bytes of a single character. UTF-8 needs 4
   // bytes, but CESU-8 may require up to 6 (3 bytes per surrogate).
-  this.charBuffer = new Buffer$1(6);
+  this.charBuffer = new Buffer(6);
   // Number of bytes received for the current incomplete multi-byte character.
   this.charReceived = 0;
   // Number of bytes expected for the current incomplete multi-byte character.
@@ -3617,7 +3601,7 @@ Readable.prototype.push = function (chunk, encoding) {
   if (!state.objectMode && typeof chunk === 'string') {
     encoding = encoding || state.defaultEncoding;
     if (encoding !== state.encoding) {
-      chunk = Buffer$1.from(chunk, encoding);
+      chunk = Buffer.from(chunk, encoding);
       encoding = '';
     }
   }
@@ -3843,7 +3827,7 @@ Readable.prototype.read = function (n) {
 
 function chunkInvalid(state, chunk) {
   var er = null;
-  if (!Buffer$1.isBuffer(chunk) && typeof chunk !== 'string' && chunk !== null && chunk !== undefined && !state.objectMode) {
+  if (!Buffer.isBuffer(chunk) && typeof chunk !== 'string' && chunk !== null && chunk !== undefined && !state.objectMode) {
     er = new TypeError('Invalid non-string/buffer chunk');
   }
   return er;
@@ -4327,7 +4311,7 @@ function copyFromBufferString(n, list) {
 // This function is designed to be inlinable, so please take care when making
 // changes to the function body.
 function copyFromBuffer(n, list) {
-  var ret = Buffer$1.allocUnsafe(n);
+  var ret = Buffer.allocUnsafe(n);
   var p = list.head;
   var c = 1;
   p.data.copy(ret);
@@ -4553,7 +4537,7 @@ function validChunk(stream, state, chunk, cb) {
   // if it is not a buffer, string, or undefined.
   if (chunk === null) {
     er = new TypeError('May not write null values to stream');
-  } else if (!Buffer$1.isBuffer(chunk) && typeof chunk !== 'string' && chunk !== undefined && !state.objectMode) {
+  } else if (!Buffer.isBuffer(chunk) && typeof chunk !== 'string' && chunk !== undefined && !state.objectMode) {
     er = new TypeError('Invalid non-string/buffer chunk');
   }
   if (er) {
@@ -4573,7 +4557,7 @@ Writable.prototype.write = function (chunk, encoding, cb) {
     encoding = null;
   }
 
-  if (Buffer$1.isBuffer(chunk)) encoding = 'buffer';else if (!encoding) encoding = state.defaultEncoding;
+  if (Buffer.isBuffer(chunk)) encoding = 'buffer';else if (!encoding) encoding = state.defaultEncoding;
 
   if (typeof cb !== 'function') cb = nop;
 
@@ -4611,7 +4595,7 @@ Writable.prototype.setDefaultEncoding = function setDefaultEncoding(encoding) {
 
 function decodeChunk(state, chunk, encoding) {
   if (!state.objectMode && state.decodeStrings !== false && typeof chunk === 'string') {
-    chunk = Buffer$1.from(chunk, encoding);
+    chunk = Buffer.from(chunk, encoding);
   }
   return chunk;
 }
@@ -4622,7 +4606,7 @@ function decodeChunk(state, chunk, encoding) {
 function writeOrBuffer(stream, state, chunk, encoding, cb) {
   chunk = decodeChunk(state, chunk, encoding);
 
-  if (Buffer$1.isBuffer(chunk)) encoding = 'buffer';
+  if (Buffer.isBuffer(chunk)) encoding = 'buffer';
   var len = state.objectMode ? 1 : chunk.length;
 
   state.length += len;
@@ -7852,7 +7836,7 @@ function deflateInit2(strm, level, method, windowBits, memLevel, strategy) {
 }
 
 
-function deflate$1(strm, flush) {
+function deflate(strm, flush) {
   var old_flush, s;
   var beg, val; // for gzip header write only
 
@@ -9237,7 +9221,7 @@ function updatewindow(strm, src, end, copy) {
   return 0;
 }
 
-function inflate$2(strm, flush) {
+function inflate$1(strm, flush) {
   var state;
   var input, output; // input/output buffers
   var next; /* next input INDEX */
@@ -10625,7 +10609,7 @@ Zlib$1.prototype._write = function(flush, input, in_off, in_len, out, out_off, o
   }
 
   if (input == null) {
-    input = new Buffer$1(0);
+    input = new Buffer(0);
     in_len = 0;
     in_off = 0;
   }
@@ -10647,13 +10631,13 @@ Zlib$1.prototype._write = function(flush, input, in_off, in_len, out, out_off, o
   case DEFLATE:
   case GZIP:
   case DEFLATERAW:
-    status = deflate$1(strm, flush);
+    status = deflate(strm, flush);
     break;
   case UNZIP:
   case INFLATE:
   case GUNZIP:
   case INFLATERAW:
-    status = inflate$2(strm, flush);
+    status = inflate$1(strm, flush);
     break;
   default:
     throw new Error('Unknown mode ' + this.mode);
@@ -10797,119 +10781,12 @@ Object.keys(codes).forEach(function(k) {
   codes[codes[k]] = k;
 });
 
-function createDeflate(o) {
-  return new Deflate(o);
-}
-
-function createInflate(o) {
-  return new Inflate(o);
-}
-
-function createDeflateRaw(o) {
-  return new DeflateRaw(o);
-}
-
-function createInflateRaw(o) {
-  return new InflateRaw(o);
-}
-
-function createGzip(o) {
-  return new Gzip(o);
-}
-
-function createGunzip(o) {
-  return new Gunzip(o);
-}
-
-function createUnzip(o) {
-  return new Unzip(o);
-}
-
-
-// Convenience methods.
-// compress/decompress a string or buffer in one step.
-function deflate(buffer, opts, callback) {
-  if (typeof opts === 'function') {
-    callback = opts;
-    opts = {};
-  }
-  return zlibBuffer(new Deflate(opts), buffer, callback);
-}
-
-function deflateSync(buffer, opts) {
-  return zlibBufferSync(new Deflate(opts), buffer);
-}
-
-function gzip(buffer, opts, callback) {
-  if (typeof opts === 'function') {
-    callback = opts;
-    opts = {};
-  }
-  return zlibBuffer(new Gzip(opts), buffer, callback);
-}
-
-function gzipSync(buffer, opts) {
-  return zlibBufferSync(new Gzip(opts), buffer);
-}
-
-function deflateRaw(buffer, opts, callback) {
-  if (typeof opts === 'function') {
-    callback = opts;
-    opts = {};
-  }
-  return zlibBuffer(new DeflateRaw(opts), buffer, callback);
-}
-
-function deflateRawSync(buffer, opts) {
-  return zlibBufferSync(new DeflateRaw(opts), buffer);
-}
-
-function unzip(buffer, opts, callback) {
-  if (typeof opts === 'function') {
-    callback = opts;
-    opts = {};
-  }
-  return zlibBuffer(new Unzip(opts), buffer, callback);
-}
-
-function unzipSync(buffer, opts) {
-  return zlibBufferSync(new Unzip(opts), buffer);
-}
-
-function inflate$1(buffer, opts, callback) {
+function inflate(buffer, opts, callback) {
   if (typeof opts === 'function') {
     callback = opts;
     opts = {};
   }
   return zlibBuffer(new Inflate(opts), buffer, callback);
-}
-
-function inflateSync(buffer, opts) {
-  return zlibBufferSync(new Inflate(opts), buffer);
-}
-
-function gunzip(buffer, opts, callback) {
-  if (typeof opts === 'function') {
-    callback = opts;
-    opts = {};
-  }
-  return zlibBuffer(new Gunzip(opts), buffer, callback);
-}
-
-function gunzipSync(buffer, opts) {
-  return zlibBufferSync(new Gunzip(opts), buffer);
-}
-
-function inflateRaw(buffer, opts, callback) {
-  if (typeof opts === 'function') {
-    callback = opts;
-    opts = {};
-  }
-  return zlibBuffer(new InflateRaw(opts), buffer, callback);
-}
-
-function inflateRawSync(buffer, opts) {
-  return zlibBufferSync(new InflateRaw(opts), buffer);
 }
 
 function zlibBuffer(engine, buffer, callback) {
@@ -10938,22 +10815,11 @@ function zlibBuffer(engine, buffer, callback) {
   }
 
   function onEnd() {
-    var buf = Buffer$1.concat(buffers, nread);
+    var buf = Buffer.concat(buffers, nread);
     buffers = [];
     callback(null, buf);
     engine.close();
   }
-}
-
-function zlibBufferSync(engine, buffer) {
-  if (typeof buffer === 'string')
-    buffer = new Buffer$1(buffer);
-  if (!Buffer$1.isBuffer(buffer))
-    throw new TypeError('Not a string or buffer');
-
-  var flushFlag = binding.Z_FINISH;
-
-  return engine._processChunk(buffer, flushFlag);
 }
 
 // generic zlib
@@ -11064,7 +10930,7 @@ function Zlib(opts, mode) {
   }
 
   if (opts.dictionary) {
-    if (!Buffer$1.isBuffer(opts.dictionary)) {
+    if (!Buffer.isBuffer(opts.dictionary)) {
       throw new Error('Invalid dictionary: it should be a Buffer instance');
     }
   }
@@ -11097,7 +10963,7 @@ function Zlib(opts, mode) {
                      strategy,
                      opts.dictionary);
 
-  this._buffer = new Buffer$1(this._chunkSize);
+  this._buffer = new Buffer(this._chunkSize);
   this._offset = 0;
   this._closed = false;
   this._level = level;
@@ -11143,7 +11009,7 @@ Zlib.prototype.reset = function() {
 // This is the _flush function called by the transform class,
 // internally, when the last chunk has been written.
 Zlib.prototype._flush = function(callback) {
-  this._transform(new Buffer$1(0), '', callback);
+  this._transform(new Buffer(0), '', callback);
 };
 
 Zlib.prototype.flush = function(kind, callback) {
@@ -11167,7 +11033,7 @@ Zlib.prototype.flush = function(kind, callback) {
     });
   } else {
     this._flushFlag = kind;
-    this.write(new Buffer$1(0), '', callback);
+    this.write(new Buffer(0), '', callback);
   }
 };
 
@@ -11194,7 +11060,7 @@ Zlib.prototype._transform = function(chunk, encoding, cb) {
   var ending = ws.ending || ws.ended;
   var last = ending && (!chunk || ws.length === chunk.length);
 
-  if (!chunk === null && !Buffer$1.isBuffer(chunk))
+  if (!chunk === null && !Buffer.isBuffer(chunk))
     return cb(new Error('invalid input'));
 
   // If it's the last chunk, or a final flush, we use the Z_FINISH flush flag.
@@ -11247,7 +11113,7 @@ Zlib.prototype._processChunk = function(chunk, flushFlag, cb) {
       throw error;
     }
 
-    var buf = Buffer$1.concat(buffers, nread);
+    var buf = Buffer.concat(buffers, nread);
     this.close();
 
     return buf;
@@ -11287,7 +11153,7 @@ Zlib.prototype._processChunk = function(chunk, flushFlag, cb) {
     if (availOutAfter === 0 || self._offset >= self._chunkSize) {
       availOutBefore = self._chunkSize;
       self._offset = 0;
-      self._buffer = new Buffer$1(self._chunkSize);
+      self._buffer = new Buffer(self._chunkSize);
     }
 
     if (availOutAfter === 0) {
@@ -11328,85 +11194,10 @@ inherits$1(Gunzip, Zlib);
 inherits$1(DeflateRaw, Zlib);
 inherits$1(InflateRaw, Zlib);
 inherits$1(Unzip, Zlib);
-var _polyfillNode_zlib = {
-  codes: codes,
-  createDeflate: createDeflate,
-  createInflate: createInflate,
-  createDeflateRaw: createDeflateRaw,
-  createInflateRaw: createInflateRaw,
-  createGzip: createGzip,
-  createGunzip: createGunzip,
-  createUnzip: createUnzip,
-  deflate: deflate,
-  deflateSync: deflateSync,
-  gzip: gzip,
-  gzipSync: gzipSync,
-  deflateRaw: deflateRaw,
-  deflateRawSync: deflateRawSync,
-  unzip: unzip,
-  unzipSync: unzipSync,
-  inflate: inflate$1,
-  inflateSync: inflateSync,
-  gunzip: gunzip,
-  gunzipSync: gunzipSync,
-  inflateRaw: inflateRaw,
-  inflateRawSync: inflateRawSync,
-  Deflate: Deflate,
-  Inflate: Inflate,
-  Gzip: Gzip,
-  Gunzip: Gunzip,
-  DeflateRaw: DeflateRaw,
-  InflateRaw: InflateRaw,
-  Unzip: Unzip,
-  Zlib: Zlib
-};
-
-var _polyfillNode_zlib$1 = /*#__PURE__*/Object.freeze({
-	__proto__: null,
-	codes: codes,
-	createDeflate: createDeflate,
-	createInflate: createInflate,
-	createDeflateRaw: createDeflateRaw,
-	createInflateRaw: createInflateRaw,
-	createGzip: createGzip,
-	createGunzip: createGunzip,
-	createUnzip: createUnzip,
-	deflate: deflate,
-	deflateSync: deflateSync,
-	gzip: gzip,
-	gzipSync: gzipSync,
-	deflateRaw: deflateRaw,
-	deflateRawSync: deflateRawSync,
-	unzip: unzip,
-	unzipSync: unzipSync,
-	inflate: inflate$1,
-	inflateSync: inflateSync,
-	gunzip: gunzip,
-	gunzipSync: gunzipSync,
-	inflateRaw: inflateRaw,
-	inflateRawSync: inflateRawSync,
-	Deflate: Deflate,
-	Inflate: Inflate,
-	Gzip: Gzip,
-	Gunzip: Gunzip,
-	DeflateRaw: DeflateRaw,
-	InflateRaw: InflateRaw,
-	Unzip: Unzip,
-	Zlib: Zlib,
-	'default': _polyfillNode_zlib
-});
-
-var require$$0 = /*@__PURE__*/getAugmentedNamespace(_polyfillNode_zlib$1);
-
-var require$$1 = /*@__PURE__*/getAugmentedNamespace(_polyfillNode_buffer);
-
-const {inflate} = require$$0;
-//const StreamPng = require('streampng');
-const {Buffer} = require$$1;
 
 const dirOrder = [2, 1, 4, 8, 6, 10, 5, 9];
 
-var icon_reader = async function read_icon(url) {
+async function read_icon$1(url) {
 	let response = await fetch(url);
 	let data = await response.arrayBuffer();
 	let dv = new DataView(data);
@@ -11539,7 +11330,14 @@ var icon_reader = async function read_icon(url) {
 		iconIndex += item.dirs * item.frames;
 	}
 	return obj;
-};
+}
+
+var icon_reader = /*#__PURE__*/Object.freeze({
+	__proto__: null,
+	'default': read_icon$1
+});
+
+var require$$1 = /*@__PURE__*/getAugmentedNamespace(icon_reader);
 
 var xzwasm_bytes = "data:application/wasm;base64,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AUYNACACRQ0AA0ACQCAALQAAIgMgAS0AACIERg0AQQFBfyADIARLGw8LIAFBAWohASAAQQFqIQAgAkF/aiICDQALC0EAC3gBAX8CQAJAIAAgAU8NACACRQ0BIAAhAwNAIAMgAS0AADoAACABQQFqIQEgA0EBaiEDIAJBf2oiAg0ADAILCyAAIAFNDQAgAkUNACABQX9qIQEgAEF/aiEDA0AgAyACaiABIAJqLQAAOgAAIAJBf2oiAg0ACwsgAAssAQF/AkAgAkUNACAAIQMDQCADIAE6AAAgA0EBaiEDIAJBf2oiAg0ACwsgAAt+AQF/AkACQCAAQQNxDQAgASACckEDcQ0AIAJBAnYiAkUNASAAIQMDQCADIAEoAgA2AgAgAUEEaiEBIANBBGohAyACQX9qIgINAAwCCwsgAkUNACAAIQMDQCADIAEtAAA6AAAgAUEBaiEBIANBAWohAyACQX9qIgINAAsLIAALfwECfwJAQQAtAOiIgIAADQBBAEEBOgDoiICAABCMgICAABCOgICAAAtBoIAIEICAgIAAIgBBgIAENgIAQQJBgICAIBCUgICAACEBIABCgICAgICAwAA3AhQgACAAQaCABGo2AhAgAEIANwIIIAAgAEEgajYCBCAAIAE2AhwgAAsVACAAKAIcEJWAgIAAIAAQgoCAgAALFgAgAEEMaiABNgIAIABBCGpBADYCAAsbACAAKAIcIABBBGogAEEMaigCAEUQk4CAgAALVAEDf0EAIQADQEEIIQEgACECA0BBACACQQFxa0GghuLtfnEgAkEBdnMhAiABQX9qIgENAAsgAEECdEHwiICAAGogAjYCACAAQQFqIgBBgAJHDQALC0oAIAJBf3MhAgJAIAFFDQADQCACQf8BcSAALQAAc0ECdEHwiICAAGooAgAgAkEIdnMhAiAAQQFqIQAgAUF/aiIBDQALCyACQX9zC2kEAX8BfgF/AX5BACEAQgAhAQNAQQghAiABIQMDQEIAIANCAYN9QsKenLzd8pW2SYMgA0IBiIUhAyACQX9qIgINAAsgAEEDdEHwkICAAGogAzcDACAAQQFqIQAgAUIBfCIBQoACUg0ACwtLACACQn+FIQICQCABRQ0AA0AgAkL/AYMgADEAAIWnQQN0QfCQgIAAaikDACACQgiIhSECIABBAWohACABQX9qIgENAAsLIAJCf4UL+xMCDn8CfgJAAkAgACgCJEUNACAAKAIAIQIMAQtBACECIABBADoAKCAAQgA3AwAgAEIANwMYIABByABqQQBB5AAQhoCAgAAaIABBrAFqQQw2AgALIAAgASgCBCIDNgIQIABBsAFqIQQgAEHgAGohBSAAQcgAaiEGIABBugFqIQcgAEG2AWohCCAAQagBaiEJIAFBBGohCiABKAIQIQsCQAJAAkACQANAAkACQAJAAkACQAJAAkACQAJAAkACQAJAAkACQAJAIAIOCgECAAQFBgcICQoPCyABKAIEIQwgASgCCCENIAEoAgAhDiAAKAKoASECIAAoAqwBIQ8MAgsgCSAAKAKoASIMakEIaiABKAIAIAEoAgQiAmogASgCCCACayICIAAoAqwBIAxrIgwgAiAMSRsiAhCHgICAABogASABKAIEIAJqNgIEQQAhDCAAQQAgACgCqAEgAmoiAiACIAAoAqwBIg9GGzYCqAEgAiAPRw0RIABBATYCAAJAIARBqIiAgABBBhCEgICAAEUNAEEFIQwMEgsgCEECQQAQjYCAgAAgACgAuAFHDRBBBiEMIAgtAAANESAAIAAtALcBIgI2AiAgAkEESw0RQQEgAnRBE3FFDRELIAEoAgQiDCABKAIIIg1GDQ4CQCABKAIAIg4gDGotAAAiDw0AIAAgDDYCECAKIAxBAWo2AgBBBiECDAwLQQAhAiAAQQA2AqgBIABBAjYCACAAIA9BAnRBBGoiDzYCrAEgACAPNgJACyAJIAJqQQhqIA4gDGogDSAMayIMIA8gAmsiAiAMIAJJGyICEIeAgIAAGiAKIAIgCigCAGo2AgBBACEMIABBACAAKAKoASACaiICIAIgACgCrAEiD0YbNgKoASACIA9HDQ8gACACQXxqIgI2AqwBQQchDCAEIAJBABCNgICAACAAIAAoAqwBIg9qQbABaigAAEcNDyAAQQI2AqgBIAAtALEBIgJBP3ENDAJAAkAgAkHAAHFFDQAgACAEIAkgDxCRgICAAEEBRw0RIAAgACkDCDcDMCAALQCxASECDAELIABCfzcDMAtCfyEQAkAgAkEYdEEYdUF/Sg0AIAAgBCAJIAAoAqwBEJGAgIAAQQFHDRAgACkDCCEQCyAAIBA3AzggACgCrAEiDSAAKAKoASICa0ECSQ0PIAAgAkEBaiIONgKoASAJIAJqQQhqLQAAQSFHDQwgACACQQJqIg82AqgBIAkgDmpBCGotAABBAUcNDCANIA9GDQ8gACACQQNqNgKoASAAKAKwCSAJIA9qQQhqLQAAEJmAgIAAIgwNDyAAKAKoASIMIAAoAqwBIgIgDCACSxshDQJAA0AgDSAMRg0BIAkgDEEBaiICNgIAIAQgDGohDyACIQwgDy0AAA0ODAALCyAGQgA3AwAgAEEANgKoASAAQQM2AgAgBkEIakIANwMACyAAIAEoAgQ2AhAgACABKAIQNgIUIAAoArAJIAEQloCAgAAhDCAAIAApA0ggASgCBCAAKAIQa618IhA3A0ggACAAKQNQIAEoAhAgACgCFCICayIPrXwiETcDUCAQIAApAzBWDQ0gESAAKQM4Vg0NAkACQAJAAkAgACgCIEF/ag4EAAMDAQMLIAEoAgwgAmogDyAAKAIYEI2AgIAArSEQDAELIAEoAgwgAmogDyAAKQMYEI+AgIAAIRALIAAgEDcDGAsgDEEBRw0OAkAgACkDMCIQQn9RDQAgECAGKQMAUg0OCwJAIAApAzgiEEJ/UQ0AQQchDCAQIAApA1BSDQ8LIAAgACkDSCAANQJAfCAAKQNgfCIRNwNgQgQhEAJAAkACQCAAKAIgQX9qDgQBAgIAAgtCCCEQCyAFIBEgEHw3AwALIAAgACkDaCAAKQNQfDcDaCAAIAVBGCAAKAJwEI2AgIAANgJwIABBBDYCACAAIAApA1hCAXw3A1gLAkAgBikDACIQQgODUA0AIBBCAXwhECABKAIEIQwgASgCCCEPA0AgDyAMRg0NIAEgDEEBaiICNgIEIAEoAgAgDGotAAANDiAGIBA3AwAgEEIDgyERIBBCAXwhECACIQwgEUIAUg0ACwsgAEEFNgIAC0EBIQIgACgCIEF/ag4EBgcHBQcLIABBkAFqIQIDQAJAIAAgASgCACAKIAEoAggQkYCAgAAiDEEBRg0AIABBgAFqIgIgAikDACABKAIEIAAoAhAiAmsiD618NwMAIAAgAiABKAIAaiAPIAAoAhgQjYCAgACtNwMYDA0LAkACQAJAAkACQCAAKAJ4DgMAAgEDCyAAIAApAwgiEDcDiAEgECAAKQNYUg0PIABBATYCeAwDCyAAIAApA5gBIAApAwh8NwOYASAAIAJBGCAAKAKgARCNgICAADYCoAEgAEEBNgJ4IAAgACkDiAFCf3wiEDcDiAEMAgsgAEECNgJ4IAAgACkDkAEgACkDCHw3A5ABCyAAKQOIASEQCyAQQgBSDQALIABBBzYCAAtBACAAKAIQIgRrIQkgAEGAAWopAwAhECAKKAIAIQwCQANAIBAgCSAMaq18IhFCA4NQDQECQCAMIAEoAghHDQAgACARNwOAASAAIAEoAgAgBGogDCAEayAAKAIYEI2AgIAArTcDGAwLCyABIAxBAWoiAjYCBCABKAIAIAxqIQ8gAiEMIA8tAAANCwwACwsgACARNwOAASAAIAEoAgAgBGogDCAEayAAKAIYEI2AgIAArTcDGEEHIQwgBSAAQZABakEYEISAgIAADQogAEEINgIACyAAIAFBIBCSgICAACIMQQFHDQkgAEEJNgIAQQwhDyAAQQw2AqwBDAELIAAoAqwBIQ8LIABBqAFqIAAoAqgBIgxqQQhqIAEoAgAgASgCBCICaiABKAIIIAJrIgIgDyAMayIMIAIgDEkbIgIQh4CAgAAaIAEgASgCBCACajYCBEEAIQwgAEEAIAAoAqgBIAJqIgIgAiAAKAKsASIPRhs2AqgBIAIgD0cNB0EHIQwgBy8AAEHZtAFHDQcgAEG0AWpBBkEAEI2AgIAAIAAoALABRw0HIABBgAFqKQMAQgKIIAA1ALQBUg0HIAAtALgBDQdBAUEHIAAoAiAgAC0AuQFGGyEMDAcLQQEhAiAAIAFBwAAQkoCAgAAiDEEBRw0GDAELQQEhAiAAIAFBIBCSgICAACIMQQFHDQULIAAgAjYCAAwACwtBBiEMDAILQQAhDAwBC0EHIQwLAkACQCAAKAIkDQACQAJAIAwNAEEHQQggASgCBCABKAIIRhshAAwBCyAMQQFGIQIgDCEAQQEhDCACDQILIAEgCzYCECABIAM2AgQgAA8LAkAgDA0AIAMgCigCAEcNACALIAEoAhBHDQAgAC0AKCEBIABBAToAKCABQQN0DwsgAEEAOgAoCyAMC5oBAQN/AkAgACgCBCIEDQAgAEIANwMICyACKAIAIQUDQAJAIAUgA0kNAEEADwsgASAFai0AACEGIAIgBUEBaiIFNgIAIAAgBkH/AHGtIASthiAAKQMIhDcDCAJAAkAgBkGAAXENAAJAIAYNAEEHIQYgBA0CCyAAQQA2AgRBAQ8LQQchBiAAIARBB2oiBDYCBCAEQT9HDQELCyAGC3wBBH8gASgCBCEDIAEoAgghBANAAkAgBCADRw0AQQAPCyABIANBAWoiBTYCBAJAIAEoAgAgA2otAAAgACkDGCAAKAIEIgOtiKdB/wFxRg0AQQcPCyAAIANBCGoiBjYCBCAFIQMgBiACSQ0ACyAAQQA2AgQgAEIANwMYQQELtAIBBH8CQAJAIAAoAiRFDQAgACgCACEDDAELQQAhAyAAQQA6ACggAEIANwMAIABCADcDGCAAQcgAakEAQeQAEIaAgIAAGiAAQawBakEMNgIAQQEhAgsgAEHIAGohBAJAAkADQAJAIANBCkcNACABKAIEIgMgASgCCCIFRg0CIAEoAgAhBgJAA0AgBiADai0AAA0BIAEgA0EBaiIDNgIEIAAgACgCBEEBakEDcTYCBCAFIANGDQQMAAsLAkAgACgCBEUNAEEHDwsgACgCJEUNACAAQQA6ACggAEIANwMAIABCADcDGCAEQQBB5AAQhoCAgAAaIABBDDYCrAELIAAgARCQgICAACIDQQFHDQJBCiEDIABBCjYCAAwACwsCQCACDQBBAA8LQQdBASAAKAIEGyEDCyADC3IBAX8CQEG4CRCAgICAACICRQ0AIAIgADYCJCACIAAgARCYgICAACIANgKwCQJAIABFDQAgAkEAOgAoIAJCADcDACACQgA3AxggAkHIAGpBAEHkABCGgICAABogAkEMNgKsASACDwsgAhCCgICAAAtBAAseAAJAIABFDQAgACgCsAkQmoCAgAAgABCCgICAAAsL/BABDH8gAEHo3QFqIQIgAEHUAGohAyAAQRxqIgRBCGohBQJAAkADQCAAKAJAIQYCQAJAAkACQAJAAkACQAJAAkACQAJAAkACQAJAAkACQCABKAIEIgcgASgCCCIISQ0AIAZBB0YNAQwSCyAGDgkBAgMEBQYHAAkPCyAAKAJMIQcMBwtBASEJIAEgB0EBajYCBCABKAIAIAdqLQAAIgdFDQgCQAJAIAdB3wFLDQAgB0EBRw0BCyAAQYACOwFQAkAgACgCPA0AIAAgASgCDCABKAIQIgZqNgIYIAAgASgCFCAGazYCLAsgBEIANwIAIAVCADcCAAwLCyAALQBQRQ0KDA4LIAEgB0EBajYCBCABKAIAIAdqLQAAIQcgAEECNgJAIAAgB0EIdCAAKAJIajYCSAwMCyABIAdBAWo2AgQgASgCACAHai0AACEHIABBAzYCQCAAIAcgACgCSGpBAWo2AkgMCwsgASAHQQFqNgIEIAEoAgAgB2otAAAhByAAQQQ2AkAgACAHQQh0NgJMDAoLIAEgB0EBajYCBCABKAIAIAdqLQAAIQcgACAAKAJENgJAIAAgByAAKAJMakEBajYCTAwJCyABIAdBAWo2AgRBByEJIAEoAgAgB2otAAAiB0HgAUsNA0EAIQYCQAJAIAdBLU8NAEEAIQgMAQsgB0FTaiIHIAdB/wFxQS1uIghBLWxrIQcgCEEBaiEICyAAQX8gCHRBf3M2AnQCQCAHQf8BcUEJSQ0AIAdBd2oiByAHQf8BcUEJbiIGQQlsayEHIAZBAWohBgsgACAGNgJwIAAgB0H/AXEiBzYCbCAGIAdqQQRLDQMgA0IANwIAIANBCGpCADcCACADQRBqQQA2AgAgAEF/IAZ0QX9zNgJwQfgAIQcDQCAAIAdqQYAIOwEAIAdBAmoiB0Hk3QFHDQALIABBBjYCQCAAQQU2AgggAEL/////DzcCAAsgACgCTCIKQQVJDQgCQCAAKAIIIgdFDQAgB0F/aiEGIAEoAgQhByABKAIIIQkDQCAJIAdGDQsgASAHQQFqIgg2AgQgASgCACAHai0AACEHIAAgBjYCCCAAIAcgACgCBEEIdHI2AgQgCCEHIAZBf2oiBkF/Rw0ACwsgAEEHNgJAIAAgCkF7aiIHNgJMCyAAIAAoAiAiBiABKAIUIAEoAhBrIgggACgCSCIJIAggCUkbIghqIAAoAiwiCSAJIAZrIAhLGzYCKCABKAIIIgogASgCBCIIayEGAkACQAJAIAAoAuTdASIJDQAgBw0BCyAAQeTdAWoiCiAJakEEaiABKAIAIAhqIAYgByAJayIHQSogCWsiCCAIIAdLGyIHIAcgBksbIgcQh4CAgAAaAkACQCAAKALk3QEiCCAHaiIGIAAoAkxHDQAgCiAIaiAHakEEakEAQT8gBmsQhoCAgAAaIAAoAuTdASAHaiEGDAELAkAgBkEUSw0AIAAgBjYC5N0BIAEgASgCBCAHajYCBAwDCyAGQWtqIQYLIABBADYCECAAIAI2AgwgACAGNgIUQQchCSAAEJeAgIAARQ0DIAAoAhAiBiAAKALk3QEiCCAHaksNAyAAIAAoAkwgBmsiBzYCTAJAIAggBk0NACAAIAggBmsiBzYC5N0BIAIgCiAGakEEaiAHEIWAgIAAGgwCCyAAQQA2AuTdASABIAEoAgQgBiAIa2oiCDYCBCABKAIIIgogCGshBgsCQCAGQRVJDQAgACAINgIQIAAgASgCADYCDCAAIApBa2ogCCAHaiAGIAdBFWpJGzYCFEEHIQkgABCXgICAAEUNAyAAKAJMIgcgACgCECIIIAEoAgRrIgZJDQMgASAINgIEIAAgByAGayIHNgJMIAEoAgggCGsiBkEUSw0BCyACIAEoAgAgCGogByAGIAYgB0sbIgcQh4CAgAAaIAAgBzYC5N0BIAEgASgCBCAHajYCBAsgACgCICIGIAAoAhwiCGshBwJAIAAoAjxFDQACQCAGIAAoAixHDQAgAEEANgIgCyABKAIMIAEoAhBqIAAoAhggCGogBxCHgICAABogACgCICEGCyAAIAY2AhwgASABKAIQIAdqIgY2AhAgACAAKAJIIAdrIgc2AkgCQCAHDQBBByEJIAAoAkwNAiAAKAJoDQIgACgCBA0CIABBADYCQAwFC0EAIQkgBiABKAIURg0BIAEoAgQgASgCCEcNBiAAKALk3QEgACgCTE8NBgwBCyAAKAJMIgpFDQFBACEJIAggB00NAANAIAEoAhQiBiABKAIQIgtNDQEgACAKIAogACgCLCAAKAIgIgxrIg0gCCAHayIIIAYgC2siBiAIIAZJGyIGIAYgDUsbIgYgBiAKSxsiBms2AkwgDCAAKAIYaiABKAIAIAdqIAYQhYCAgAAaIAAgACgCICAGaiIHNgIgAkAgACgCJCAHTw0AIAAgBzYCJAsCQCAAKAI8RQ0AAkAgByAAKAIsRw0AIABBADYCIAsgASgCDCABKAIQaiABKAIAIAEoAgRqIAYQhYCAgAAaIAAoAiAhBwsgACAHNgIcIAEgASgCECAGajYCECABIAEoAgQgBmoiBzYCBCAAKAJMIgpFDQIgASgCCCIIIAdLDQALCyAJDwsgAEEANgJADAMLIAdBGHRBGHVBf0oNASAAQQE2AkAgACAHQRB0QYCA/ABxNgJIAkAgB0HAAUkNACAAQQU2AkQgAEEAOgBRDAMLIAAtAFENAyAAQQY2AkQgB0GgAUkNAiADQgA3AgAgA0EQakEANgIAIANBCGpCADcCAEH4ACEHA0AgACAHakGACDsBACAHQQJqIgdB5N0BRw0ACwsgAEEFNgIIIABC/////w83AgAMAQsgB0ECSw0BIABCg4CAgIABNwJADAALC0EHDwtBAAuXGAERfyAAQRhqIQECQCAAQSBqKAIAIgIgAEEoaigCACIDTw0AIABB6ABqIgQoAgBFDQAgASAEIAAoAlQQm4CAgAAaIAAoAighAyAAKAIgIQILAkAgAiADTw0AIABB3A1qIQUgAEHoAGohBiAAQeAVaiEHIABB1ABqIQgDQCAAKAIQIgkgACgCFEsNASAAIAAoAmQiCkEFdGogACgCdCACcSILQQF0aiIMQfgAaiENAkACQCAAKAIAIgRBgICACEkNACAAKAIEIQ4MAQsgACAEQQh0IgQ2AgAgACAJQQFqIgM2AhAgACAAKAIEQQh0IAAoAgwgCWotAAByIg42AgQgAyEJCwJAAkAgDiAEQQt2IA0vAQAiD2wiA08NACAAIAM2AgAgDSAPQYAQIA9rQQV2ajsBACACQX9qIQQCQCACDQAgACgCLCAEaiEECwJAAkAgACgCJCIPDQBBACEEDAELIAAoAhggBGotAAAhBAsgACgCcCACcSAAKAJsIg10IARBCCANa3ZqIQwCQAJAIApBBksNAEEBIQQDQCAAIAxBgAxsaiAEQQF0IgRqQeQdaiENAkACQCADQf///wdNDQAgAyEKDAELIAAgA0EIdCIKNgIAIAAgCUEBaiIDNgIQIAAgDkEIdCAAKAIMIAlqLQAAciIONgIEIAMhCQsCQAJAIA4gCkELdiANLwEAIg9sIgNJDQAgACAOIANrIg42AgQgACAKIANrIgM2AgAgDSAPIA9BBXZrOwEAIARBAXIhBAwBCyAAIAM2AgAgDSAPQYAQIA9rQQV2ajsBAAsgBEGAAkkNAAwCCwsgAiAAKAJUIg1Bf3NqIQQCQCACIA1LDQAgACgCLCAEaiEECwJAAkAgDw0AQQAhEAwBCyAAKAIYIARqLQAAIRALQQEhBEGAAiENA0AgACAMQYAMbGogEEEBdCIQIA1xIhEgDWogBGpBAXRqQeQdaiEPAkACQCADQf///wdNDQAgAyELDAELIAAgA0EIdCILNgIAIAAgCUEBaiIDNgIQIAAgDkEIdCAAKAIMIAlqLQAAciIONgIEIAMhCQsCQAJAIA4gC0ELdiAPLwEAIgpsIgNJDQAgACAOIANrIg42AgQgACALIANrIgM2AgAgCiAKQQV2ayEKQQAhDUEBIQsMAQsgACADNgIAIApBgBAgCmtBBXZqIQpBACELCyAPIAo7AQAgDSARcyENIAsgBEEBdHIiBEGAAkkNAAsLIAAgAkEBajYCICAAKAIYIAJqIAQ6AAACQCAAKAIkIAAoAiAiAk8NACAAIAI2AiQLAkAgACgCZCIDQQNLDQAgAEEANgJkDAILAkAgA0EJSw0AIAAgA0F9ajYCZAwCCyAAIANBemo2AmQMAQsgACAOIANrIg42AgQgACAEIANrIgM2AgAgDSAPIA9BBXZrOwEAIAAgCkEBdGoiD0H4A2ohBAJAAkAgA0H///8HTQ0AIAkhCgwBCyAAIANBCHQiAzYCACAAIAlBAWoiCjYCECAAIA5BCHQgACgCDCAJai0AAHIiDjYCBAsCQAJAIA4gA0ELdiAELwEAIg1sIglJDQAgACAOIAlrIg42AgQgACADIAlrIgM2AgAgBCANIA1BBXZrOwEAIA9BkARqIQ0CQAJAIANB////B00NACAKIRAMAQsgACADQQh0IgM2AgAgACAKQQFqIhA2AhAgACAOQQh0IAAoAgwgCmotAAByIg42AgQLAkACQCAOIANBC3YgDS8BACIJbCIETw0AIAAgBDYCACANIAlBgBAgCWtBBXZqOwEAIAxB2ARqIQMCQCAEQf///wdLDQAgACAEQQh0IgQ2AgAgACAQQQFqNgIQIAAgDkEIdCAAKAIMIBBqLQAAciIONgIECwJAIA4gBEELdiADLwEAIg1sIglJDQAgACAOIAlrNgIEIAAgBCAJazYCACADIA0gDUEFdms7AQAMAgsgAyANQYAQIA1rQQV2ajsBACAAIAk2AgAgAEEBNgJoIABBCUELIAAoAmRBB0kbNgJkDAMLIAAgDiAEayIONgIEIAAgAyAEayIDNgIAIA0gCSAJQQV2azsBACAPQagEaiEEAkACQCADQf///wdNDQAgECEKDAELIAAgA0EIdCIDNgIAIAAgEEEBaiIKNgIQIAAgDkEIdCAAKAIMIBBqLQAAciIONgIECwJAAkAgDiADQQt2IAQvAQAiDWwiCU8NACAAIAk2AgAgBCANQYAQIA1rQQV2ajsBACAAKAJYIQMMAQsgACAOIAlrIg42AgQgACADIAlrIgM2AgAgBCANIA1BBXZrOwEAIA9BwARqIQQCQCADQf///wdLDQAgACADQQh0IgM2AgAgACAKQQFqNgIQIAAgDkEIdCAAKAIMIApqLQAAciIONgIECwJAAkAgDiADQQt2IAQvAQAiDWwiCU8NACAAIAk2AgAgBCANQYAQIA1rQQV2ajsBACAAKAJcIQMMAQsgACAOIAlrNgIEIAAgAyAJazYCACAAKAJgIQMgACAAKAJcNgJgIAQgDSANQQV2azsBAAsgACAAKAJYNgJcCyAAIAAoAlQ2AlggACADNgJUCyAAQQhBCyAAKAJkQQdJGzYCZCAAIAcgCxCcgICAAAwBCyAEIA1BgBAgDWtBBXZqOwEAIAAgCTYCACAAIAAoAlw2AmAgACAAKQJUNwJYIABBB0EKIAAoAmRBB0kbNgJkIAAgBSALEJyAgIAAIAAoAmgiA0F+akEDIANBBkkbIQogACgCACEDQQEhDgNAIAAgCkEHdGogDkEBdCIOakHYB2ohDQJAAkAgA0GAgIAISQ0AIAAoAgQhBAwBCyAAIANBCHQiAzYCACAAIAAoAhAiBEEBajYCECAAIAAoAgRBCHQgBCAAKAIMai0AAHIiBDYCBAsCQAJAIAQgA0ELdiANLwEAIglsIg9JDQAgACAEIA9rIgQ2AgQgACADIA9rIgM2AgAgDSAJIAlBBXZrOwEAIA5BAXIhDgwBCyAAIA82AgAgDSAJQYAQIAlrQQV2ajsBACAPIQMLIA5BwABJDQALAkAgDkFAaiINQQNLDQAgACANNgJUDAELIAAgDUEBcUECciIONgJUIA1BAXYhCQJAIA1BDUsNACAAIA4gCUF/aiIMdCILNgJUQQEhDiAIIAtBAXRqIA1BAXRrQYILaiEQQQAhDwNAIBAgDkEBdCIOaiENAkACQCADQf///wdNDQAgAyEKDAELIAAgA0EIdCIKNgIAIAAgACgCECIDQQFqNgIQIAAgBEEIdCADIAAoAgxqLQAAciIENgIECwJAAkAgBCAKQQt2IA0vAQAiCWwiA08NACAAIAM2AgAgDSAJQYAQIAlrQQV2ajsBAAwBCyAAIAQgA2siBDYCBCAAIAogA2siAzYCACANIAkgCUEFdms7AQAgAEEBIA90IAtqIgs2AlQgDkEBciEOCyAPQQFqIg8gDEkNAAwCCwsgCUF7aiENA0ACQCADQf///wdLDQAgACADQQh0IgM2AgAgACAAKAIQIglBAWo2AhAgACAEQQh0IAkgACgCDGotAAByIgQ2AgQLIAAgA0EBdiIDNgIAIAAgDkEBdEEBciAEIANrIgRBH3UiCWoiDjYCVCAAIAkgA3EgBGoiBDYCBCANQX9qIg0NAAsgACAOQQR0Igs2AlRBACEPQQEhDgNAIAAgDkEBdCIOakG8DWohDQJAAkAgA0H///8HTQ0AIAMhCgwBCyAAIANBCHQiCjYCACAAIAAoAhAiA0EBajYCECAAIARBCHQgAyAAKAIMai0AAHIiBDYCBAsCQAJAIAQgCkELdiANLwEAIglsIgNPDQAgACADNgIAIA0gCUGAECAJa0EFdmo7AQAMAQsgACAEIANrIgQ2AgQgACAKIANrIgM2AgAgDSAJIAlBBXZrOwEAIABBASAPdCALaiILNgJUIA5BAXIhDgsgD0EBaiIPQQRHDQALCwJAIAEgBiAAKAJUEJuAgIAADQBBAA8LIAAoAiAhAgsgAiAAKAIoSQ0ACwtBASEDAkAgACgCACIEQf///wdLDQAgACAEQQh0NgIAQQEhAyAAIAAoAhAiBEEBajYCECAAIAAoAgRBCHQgBCAAKAIMai0AAHI2AgQLIAMLZwEBfwJAQajeARCAgICAACICRQ0AIAIgATYCNCACIAA2AjwCQAJAAkAgAEF/ag4CAAECCyACIAEQgICAgAAiADYCGCAADQEgAhCCgICAAAwCCyACQQA2AjggAkEANgIYCyACDwtBAAvKAQECf0EGIQICQCABQSdLDQAgAEEwaiABQQFxQQJyIAFBAXZBC2p0IgE2AgACQCAAQTxqKAIAIgNFDQBBBCECIAEgAEE0aigCAEsNASAAQSxqIAE2AgAgA0ECRw0AIABBOGooAgAgAU8NACAAIAE2AjggACgCGBCCgICAACAAIAAoAjAQgICAgAAiATYCGCABDQAgAEEANgI4QQMPC0EAIQIgAEEANgLk3QEgAEEANgJAIABB0ABqQQE6AAAgAEHoAGpBADYCAAsgAgsjAAJAIABBPGooAgBFDQAgACgCGBCCgICAAAsgABCCgICAAAv1AQEEf0EAIQMCQCAAKAIMIAJNDQAgACgCGCACTQ0AIAEgASgCACIEIAAoAhAgACgCCCIFayIGIAQgBiAESRsiBGs2AgAgBSACQX9zaiEBAkAgBSACSw0AIAAoAhQgAWohAQsgACgCACICIAFqLQAAIQZBASEDIAAgBUEBajYCCCACIAVqIAY6AAACQCAEQX9qIgJFDQADQCAAKAIAIgVBACABQQFqIgEgASAAKAIURhsiAWotAAAhBCAAIAAoAggiBkEBajYCCCAFIAZqIAQ6AAAgAkF/aiICDQALCyAAKAIMIAAoAggiAU8NACAAIAE2AgwLIAML4gQBB38CQAJAIAAoAgAiA0GAgIAISQ0AIAAoAgQhBAwBCyAAIANBCHQiAzYCACAAIAAoAhAiBUEBajYCECAAIAAoAgRBCHQgBSAAKAIMai0AAHIiBDYCBAsCQAJAIAQgA0ELdiABLwEAIgZsIgVPDQAgACAFNgIAIAEgBkGAECAGa0EFdmo7AQAgASACQQR0akEEaiEHQQghCEECIQkMAQsgACAEIAVrIgQ2AgQgACADIAVrIgM2AgAgASAGIAZBBXZrOwEAAkAgA0H///8HSw0AIAAgA0EIdCIDNgIAIAAgACgCECIFQQFqNgIQIAAgBEEIdCAFIAAoAgxqLQAAciIENgIECwJAIAQgA0ELdiABLwECIgZsIgVPDQAgACAFNgIAIAEgBkGAECAGa0EFdmo7AQIgASACQQR0akGEAmohB0EIIQhBCiEJDAELIAAgBCAFayIENgIEIAAgAyAFayIFNgIAIAEgBiAGQQV2azsBAiABQYQEaiEHQYACIQhBEiEJCyAAQegAaiAJNgIAQQEhAQNAIAcgAUEBdCIBaiEDAkACQCAFQf///wdNDQAgBSECDAELIAAgBUEIdCICNgIAIAAgACgCECIFQQFqNgIQIAAgBEEIdCAFIAAoAgxqLQAAciIENgIECwJAAkAgBCACQQt2IAMvAQAiBmwiBUkNACAAIAQgBWsiBDYCBCAAIAIgBWsiBTYCACADIAYgBkEFdms7AQAgAUEBciEBDAELIAAgBTYCACADIAZBgBAgBmtBBXZqOwEACyABIAhJDQALIABB6ABqIAEgCGsgCWo2AgALCzUBAEGACAsuCAAAABAAAAAYAAAAIAAAACgAAAAwAAAAQAAAAFAAAACAAAAAAAEAAP03elhaAA==";
 
@@ -11666,7 +11464,7 @@ var xzwasm = /*#__PURE__*/Object.freeze({
 var require$$2 = /*@__PURE__*/getAugmentedNamespace(xzwasm);
 
 const Appearance = appearance;
-const read_icon = icon_reader;
+const read_icon = require$$1;
 const {XzReadableStream} = require$$2;
 
 var loader = class Demo {
