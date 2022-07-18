@@ -1,62 +1,41 @@
-import {nodeResolve} from "@rollup/plugin-node-resolve";
-import commonjs from "@rollup/plugin-commonjs";
-import nodePolyfills from 'rollup-plugin-polyfill-node';
 import rimraf from "rimraf";
-import scss from 'rollup-plugin-scss';
-import {readFileSync} from 'fs';
+import typescript from '@rollup/plugin-typescript';
+import htmlPlugin from "./lib/html";
+import moduleUrlPlugin from "./lib/moduleurl";
+import nodeResolve from "rollup-plugin-node-resolve";
+import postcss from 'rollup-plugin-postcss';
+import { terser } from "rollup-plugin-terser";
+import OMT from "@surma/rollup-plugin-off-main-thread";
 
 rimraf.sync("dist");
-
-function find_chunk(bundle, name) {
-	for(let item of Object.values(bundle)) {
-		if(item.name.endsWith(name)) return item;
-	}
-}
 
 /**
  * @type {import('rollup').RollupOptions}
  */
 const config = {
-	input: {
-		main: "index.js"
+	input:
+	{
+		main: "src/main/index.ts"
 	},
 	output: {
 		dir: "dist",
-		chunkFileNames: "[name]-[hash].mjs",
-		entryFileNames: "[name]-[hash].mjs"
+		chunkFileNames: "[name]-[hash].js",
+		entryFileNames: "[name]-[hash].js",
+		format: "amd"
 	},
 	plugins: [
-		nodePolyfills(),
-		commonjs(),
-		nodeResolve({browser: true}),
-		scss({output: 'dist/main.css'}),
-		{
-			name: 'html-plugin',
-			buildStart() {
-				this.addWatchFile('index.html');
-			},
-			async generateBundle(options, bundle) {
-				this.emitFile({
-					fileName: 'index.html',
-					type: 'asset',
-					source: readFileSync('index.html', 'utf8').replace('{main.js}', find_chunk(bundle, "main").fileName)
-				})
-			}
-		},
-		{
-			name: 'CNAME-plugin',
-			buildStart() {
-				this.addWatchFile('CNAME');
-			},
-			async generateBundle(options, bundle) {
-				this.emitFile({
-					fileName: 'CNAME',
-					type: 'asset',
-					source: readFileSync('CNAME', 'utf8')
-				})
-			}
-		}
-	],
+		typescript(),
+		nodeResolve(),
+		moduleUrlPlugin(),
+		postcss({
+			modules: true,
+			use: ['sass'],
+			extensions: ['.scss']
+		}),
+		OMT(),
+		htmlPlugin(),
+		//terser()
+	]
 };
 export default config;
 
