@@ -156,7 +156,10 @@ export class DmiAtlas extends Atlas {
 			for(let frame of dir.frames) {
 				let node = this.hash_to_node.get(frame.sprite_hash);
 				frame.atlas_node = node;
-				if(dir.frames.length == 1) dir.atlas_node = node;
+				if(dir.frames.length == 1) {
+					dir.atlas_node = node;
+					dir.current_frame = frame;
+				}
 			}
 			if(dir.frames.length > 1) {
 				this.add_anim_dir(dir);

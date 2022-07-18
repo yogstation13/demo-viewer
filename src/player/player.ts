@@ -61,7 +61,7 @@ export class DemoPlayer {
 					if(typeof underlay == "number") converting.underlays[i] = this.appearance_cache[underlay]
 				}
 				converting.sorted_appearances = undefined;
-				converting.icon_state_node = undefined;
+				converting.icon_state_dir = undefined;
 				converting.derived_from = converting as Appearance;
 				this.appearance_cache.push(converting as Appearance);
 			}
@@ -338,21 +338,21 @@ export class DemoPlayer {
 			let root_appearance = thing.appearance;
 			if(!root_appearance || root_appearance.invisibility > see_invisible) continue;
 			for(let appearance of Appearance.get_appearance_parts(root_appearance)) {
-				if(!appearance.icon_state_node) {
+				if(!appearance.icon_state_dir) {
 					let dir = this.get_appearance_dir(appearance);
 					if(dir) {
-						appearance.icon_state_node = dir.atlas_node;
+						appearance.icon_state_dir = dir;
 					}
 				}
-				if(appearance.icon_state_node) {
-					if(buffer.atlas != appearance.icon_state_node.atlas) {
+				if(appearance.icon_state_dir?.atlas_node) {
+					if(buffer.atlas != appearance.icon_state_dir.atlas_node?.atlas) {
 						if(buffer_index) {
 							buffer.add_draw(commands, 0, buffer_index);
 							buffer_index = 0;
 						}
-						buffer.atlas = appearance.icon_state_node.atlas as DmiAtlas;
+						buffer.atlas = appearance.icon_state_dir.atlas_node?.atlas as DmiAtlas;
 					}
-					appearance.icon_state_node.use_index = this.use_index;
+					appearance.icon_state_dir.atlas_node.use_index = this.use_index;
 					if(buffer_index >= buffer.get_size()) buffer.expand();
 					buffer.write_appearance(buffer_index++, appearance, x, y);
 				}
@@ -614,12 +614,25 @@ export class DemoPlayer {
 			ref: number,
 			clients: string[]
 		}[] = [];
+		let included_things = new Set<Atom>();
 		let turf = this.get_turf(Math.floor(x), Math.floor(y), this.z_level);
-		if(!turf) return things;
-		things.push({name: turf.appearance?.name ?? "null", ref: turf.ref, clients: []});
-		for(let obj of turf.contents) {
-			things.push({name: obj.appearance?.name ?? "null", ref: obj.ref, clients: this.get_object_clients(obj)});
+		if(turf) {
+			included_things.add(turf);
+			things.push({name: turf.appearance?.name ?? "null", ref: turf.ref, clients: []});
+			/*for(let obj of turf.contents) {
+				things.push({name: obj.appearance?.name ?? "null", ref: obj.ref, clients: this.get_object_clients(obj)});
+			}*/
 		}
+		for(let thing of this.last_objects) {
+			let atom = thing.get_click_target();
+			if(!atom || included_things.has(atom)) continue;
+			let [ox, oy] = thing.get_offset(this);
+			if(thing.appearance && Appearance.check_appearance_click(thing.appearance, x*32-ox, y*32-oy, true)) {
+				included_things.add(atom);
+				things.push({name: atom.appearance?.name ?? "null", ref: atom.ref, clients: this.get_object_clients(atom)});
+			}
+		}
+		things.reverse();
 		return things;
 	}
 

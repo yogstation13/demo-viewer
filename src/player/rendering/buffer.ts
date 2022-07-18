@@ -22,14 +22,14 @@ export class DrawBuffer {
 		fa[off+4] = 1;
 		fa[off+5] = 0;
 		let matrix_view = fa.subarray(off,off+6);
-		let icon_width = appearance.icon_state_node?.width ?? 32;
-		let icon_height = appearance.icon_state_node?.height ?? 32;
+		let icon_width = appearance.icon_state_dir?.atlas_node?.width ?? 32;
+		let icon_height = appearance.icon_state_dir?.atlas_node?.height ?? 32;
 		matrix_translate(matrix_view, -icon_width/2, -icon_height/2);
 		matrix_multiply(matrix_view, appearance.transform);
 		matrix_translate(matrix_view, icon_width/2, icon_height/2);
 		matrix_translate(matrix_view, step_x + appearance.pixel_x + appearance.pixel_w, step_y + appearance.pixel_y + appearance.pixel_z);
-		if(appearance.icon_state_node) {
-			let node = appearance.icon_state_node;
+		if(appearance.icon_state_dir?.atlas_node) {
+			let node = appearance.icon_state_dir.atlas_node;
 			fa[off+6] = node.x;
 			fa[off+7] = node.y;
 			fa[off+8] = node.x+node.width;

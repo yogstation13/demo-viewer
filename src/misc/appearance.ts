@@ -1,6 +1,6 @@
-import { AtlasNode } from "../player/rendering/atlas";
+import { IconStateDir } from "../player/rendering/icon";
 import { RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM } from "./constants";
-import { Matrix, matrix_is_identity, matrix_multiply } from "./matrix";
+import { Matrix, matrix_invert, matrix_is_identity, matrix_multiply } from "./matrix";
 
 export interface BaseAppearance<T> {
 	icon : number|null;
@@ -27,7 +27,7 @@ interface AppearanceCachedData {
 	sorted_appearances? : Appearance[];
 	floating_appearances? : Appearance[];
 	derived_from : Appearance;
-	icon_state_node? : AtlasNode;
+	icon_state_dir? : IconStateDir;
 }
 
 export type ReaderAppearance = BaseAppearance<number>;
@@ -117,8 +117,8 @@ export namespace Appearance {
 		let top = -Infinity;
 
 		for(let part of get_appearance_parts(appearance)) {
-			let icon_width = part.icon_state_node?.width ?? 32;
-			let icon_height = part.icon_state_node?.height ?? 32;
+			let icon_width = part.icon_state_dir?.atlas_node?.width ?? 32;
+			let icon_height = part.icon_state_dir?.atlas_node?.height ?? 32;
 			for(let ix of [-0.5,0.5]) for(let iy of [-0.5,0.5]) {
 				let x = part.transform[0] * ix * icon_width + part.transform[1] * iy * icon_height + part.transform[2] + 0.5 * icon_width + part.pixel_x + part.pixel_w;
 				let y = part.transform[3] * ix * icon_width + part.transform[4] * iy * icon_height + part.transform[5] + 0.5 * icon_height + part.pixel_y + part.pixel_z;
@@ -136,6 +136,35 @@ export namespace Appearance {
 			width: right-left,
 			height: top-bottom
 		};
+	}
+
+	export function check_appearance_click(appearance : Appearance, x:number, y:number, full_mouse_opacity = false) {
+		let parts = get_appearance_parts(appearance);
+		for(let i = parts.length-1; i >= 0; i--) {
+			let mouse_opacity = full_mouse_opacity ? 2 : 1;
+			if(mouse_opacity == 0) continue;
+			let part = parts[i];
+			let inv_mat = matrix_invert([...part.transform]);
+			if(!inv_mat) continue;
+			let frame = part.icon_state_dir?.current_frame;
+			if(!frame && mouse_opacity <= 1) continue;
+			let icon_width = 32;
+			let icon_height = 32;
+			if(frame) {
+				icon_width = frame.sprite_data.width;
+				icon_height = frame.sprite_data.height;
+			}
+			let irx = x - (icon_width/2) - part.pixel_x - part.pixel_w;
+			let iry = y - (icon_height/2) - part.pixel_y - part.pixel_z;
+			let rx = irx * inv_mat[0] + iry * inv_mat[1] + inv_mat[2] + icon_width/2;
+			let ry = irx * inv_mat[3] + iry * inv_mat[4] + inv_mat[5] + icon_height/2;
+			if(rx < 0 || ry < 0 || rx >= icon_width || ry >= icon_height) continue;
+			if(mouse_opacity <= 1 && frame) {
+				if(frame.sprite_data.data[(Math.floor(icon_height-ry) * icon_width + Math.floor(rx)) * 4 + 3] == 0) continue;
+			}
+			return true;
+		}
+		return false;
 	}
 }
 

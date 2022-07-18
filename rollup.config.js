@@ -1,7 +1,6 @@
 import rimraf from "rimraf";
 import typescript from '@rollup/plugin-typescript';
 import htmlPlugin from "./lib/html";
-import moduleUrlPlugin from "./lib/moduleurl";
 import nodeResolve from "rollup-plugin-node-resolve";
 import postcss from 'rollup-plugin-postcss';
 import { terser } from "rollup-plugin-terser";
@@ -27,7 +26,6 @@ const config = {
 	plugins: [
 		typescript(),
 		nodeResolve(),
-		moduleUrlPlugin(),
 		postcss({
 			modules: true,
 			use: ['sass'],
@@ -35,7 +33,7 @@ const config = {
 		}),
 		OMT(),
 		htmlPlugin(),
-		terser(),
+		//terser(),
 		{
 			name: 'files-plugin',
 			buildStart() {
