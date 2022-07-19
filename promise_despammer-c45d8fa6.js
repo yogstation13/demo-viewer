@@ -1,0 +1,1 @@
+define(["exports"],(function(t){"use strict";t.despam_promise=function(t){let e,n=[],o=[],r=!1;return function(...f){return new Promise((async(i,s)=>{e=f,n.push(i),o.push(s),async function(){if(!r){for(r=!0;e;){let r=e;e=void 0;let f=n;n=[];let i=o;o=[];try{let e=await t(...r);for(let t of f)t(e)}catch(t){for(let e of i)e(t)}}r=!1}}()}))}}}));
