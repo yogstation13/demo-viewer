@@ -9,7 +9,7 @@ import { ChatPanel } from "./chat";
 export class Menu extends Panel {
 	constructor() {
 		super("", true);
-		this.panel_div.style.setProperty("--max-height", "calc(90vh;)");
+		this.panel_div.style.setProperty("--max-height", "calc(90vh)");
 		this.panel_div.removeChild(this.header_div);
 		this.panel_div.removeChild(this.drag_handle_div);
 		this.panel_div.classList.add(classes.no_min_height);
