@@ -10,6 +10,7 @@ import { ProgressSpinner } from "./progress_spinner";
 import { load_image } from "./rendering/image_loader";
 import { IconLoader } from "../player/rendering/icon_loader";
 import { OptionalXzReadableStream } from "../streams/optional_xz_stream";
+import { StreamQueue } from "../streams/multi_stream";
 
 let parser = Comlink.wrap<DemoParserInterface>(new Worker(parser_url));
 
@@ -47,29 +48,75 @@ async function stream_to_interface(parser_interface : Comlink.Remote<DemoParserI
 	}
 }
 
-let url : string|null = null;
+let _url : string|null = null;
 let querystring = new URLSearchParams(window.location.search);
 if(querystring.has("demo_url")) {
-	url = querystring.get("demo_url");
+	_url = querystring.get("demo_url");
 } else if(querystring.has("roundid")) {
-	url = `https://yogstation.net/rounds/${querystring.get("roundid")}/replay`;
+	_url = `https://yogstation.net/rounds/${querystring.get("roundid")}/replay`;
+}
+const url = _url;
+
+function is_streamable_replay(response : Response) {
+	return response.headers.get("accept-ranges") == "bytes" ||
+		response.headers.get("x-allow-ss13-replay-streaming") == "true" // Why the snowflakey HTTP header? because the FUCKING CLOUDFLARE BLOCKS THE ACCEPT-RANGES HEADER. FUCK YOU FOR THAT CLOUD FLARE BY THE WAY.
+}
+
+function stream_replay(response : Response, url:string) {
+	let stream_queue = new StreamQueue<Uint8Array>();
+	if(!response.body) {
+		throw new Error("No stream!");
+	}
+	stream_queue.add(response.body);
+	console.log(response);
+	stream_queue.wait_empty().then(async () => {
+		let last_succeeded = false;
+		while(is_streamable_replay(response)) {
+			await new Promise(resolve => setTimeout(resolve, last_succeeded ? 1000 : 10000));
+			response = await fetch(url, {
+				credentials: +(querystring.get('send_credentials') ?? 0) ? 'include' : 'same-origin',
+				headers: {'Range': 'bytes=' + stream_queue.bytes_read + '-'}
+			});
+			if(!response.body) {
+				throw new Error("No stream!");
+			}
+			if(response.status == 206) {
+				let prev_size = stream_queue.bytes_read;
+				stream_queue.add(response.body);
+				await stream_queue.wait_empty();
+				if(stream_queue.bytes_read > prev_size) {
+					last_succeeded = true;
+				}
+			} else if(response.status == 416) {
+				last_succeeded = false;
+			} else {
+				break;
+			}
+		}
+		stream_queue.end();
+	});
+	return stream_queue.readable;
 }
 
 if(url) {
 	document.body.appendChild(spinner.element);
-	fetch(url).then(async res => {
+	fetch(url, {credentials: +(querystring.get('send_credentials') ?? 0) ? 'include' : 'same-origin'}).then(async res => {
 		if(!res.ok) {
 			document.body.textContent = `Server responded with ${res.status} ${res.statusText}`;
 			document.body.style.fontSize = "40px";
 			return;
 		}
-		let stream = res.body;
-		if(!stream) {
-			console.error("No stream!");
+		if(!res.body) {
+			throw new Error("No stream!");
 			return;
 		}
-		let start = start_demo_player();
+		let stream = res.body;
 		
+		if(is_streamable_replay(res)) {
+			stream = stream_replay(res, url);
+		}
+		
+		let start = start_demo_player();
 		stream_to_interface(parser, new OptionalXzReadableStream(stream));
 		return start;
 	}).catch(e => {

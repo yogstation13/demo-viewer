@@ -7,6 +7,8 @@ export class StreamQueue<R = any> {
 				let acted = false;
 				while(!acted) {
 					while(!this._ended && !this._readers.length) {
+						for(let cb of this._empty_callbacks) cb();
+						this._empty_callbacks.length = 0;
 						if(this._continue_cb) throw new Error("Multiple pulls!");
 						await new Promise<void>(resolve => {this._continue_cb = resolve;});
 					}
@@ -17,6 +19,10 @@ export class StreamQueue<R = any> {
 							if(reader != this._readers[0]) throw new Error("Reader queue head got changed while reading");
 							this._readers.shift();
 						} else {
+							if(chunk.value instanceof Uint8Array) {
+								this.bytes_read += chunk.value.length;
+								console.log(chunk.value.length + " bytes");
+							}
 							controller.enqueue(chunk.value);
 							acted = true;
 						}
@@ -38,6 +44,7 @@ export class StreamQueue<R = any> {
 	private _canceled = false;
 	private _readers : ReadableStreamDefaultReader<R>[] = [];
 	private _continue_cb : undefined | (() => void) = undefined;
+	bytes_read : number = 0;
 
 	private _continue() {
 		if(this._continue_cb) {
@@ -50,6 +57,13 @@ export class StreamQueue<R = any> {
 	end() {
 		this._ended = true;
 		this._continue();
+	}
+
+	private _empty_callbacks : (()=>void)[] = [];
+	wait_empty() {
+		if(this._ended) return Promise.reject(new Error("Already ended!"));
+		if(!this._readers.length) return Promise.resolve();
+		return new Promise<void>(resolve => this._empty_callbacks.push(resolve));
 	}
 
 	add(stream : ReadableStream<R>) {
