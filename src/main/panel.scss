@@ -25,10 +25,10 @@
 	--highlight-color-text: #8ba5c4;
 	display: inline-flex;
 	flex-direction: column;
-	max-width: min(max(200px, var(--max-width)), 100vw);
-	max-height: min(max(90px, var(--max-height)), 100vh);
-	min-width: min(max(200px, var(--min-width)), 100vw);
-	min-height: min(max(90px, var(--min-height)), 100vh);
+	max-width: calc(min(max(200px, var(--max-width)), 100vw));
+	max-height: calc(min(max(90px, var(--max-height)), 100vh));
+	min-width: calc(min(max(200px, var(--min-width)), 100vw));
+	min-height: calc(min(max(90px, var(--min-height)), 100vh));
 	&.collapsed {
 		min-height: 0px;
 	}

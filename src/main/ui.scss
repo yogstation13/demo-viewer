@@ -36,8 +36,8 @@ body {
 	}
 	left:0px;
 	top:0px;
-	min-width: min(100vw,200px);
-    min-height: min(100vh,200px);
+	min-width: calc(min(100vw,200px));
+    min-height: calc(min(100vh,200px));
     background-image: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, transparent 50%, transparent 100%);
 	background-position: top left;
 	background-size: 200px 200px;

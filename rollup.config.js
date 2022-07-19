@@ -33,7 +33,7 @@ const config = {
 		}),
 		OMT(),
 		htmlPlugin(),
-		//terser(),
+		terser(),
 		{
 			name: 'files-plugin',
 			buildStart() {

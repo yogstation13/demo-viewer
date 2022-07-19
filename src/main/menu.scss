@@ -41,11 +41,11 @@
 		content: "";
 		height: 3px;
 		width: 100%;
-		background-color: var(--highlight-color);
+		background-color: calc(var(--highlight-color));
 		display: block;
 	}
 }
 .no_min_height {
-	max-height: min(var(--max-height), 100vh);
-	min-height: min(var(--min-height), 100vh);
+	max-height: calc(min(var(--max-height), 100vh));
+	min-height: calc(min(var(--min-height), 100vh));
 }

@@ -1,7 +1,6 @@
 import { create_exposed_promise } from "../misc/exposed_promise";
 import { DemoParser, ReaderDemoBatchData } from "./base_parser";
 import { DemoParserText } from "./text_parser";
-import { compileString } from 'sass';
 
 export class DemoParserInterface {
 	private _parser : DemoParser|undefined;
