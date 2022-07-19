@@ -1,0 +1,51 @@
+.menu_content {
+	padding: 0px;
+	font-size: 20px;
+	button {
+		cursor: pointer;
+		display: block;
+		background: transparent;
+		border: none;
+		color: inherit;
+		font: inherit;
+		line-height: 1em;
+		min-height: 2em;
+		margin: 0px;
+		padding: 0px;
+		padding-left: 10px;
+		padding-right: 10px;
+		font-family: sans-serif;
+		text-align: left;
+		width: 100%;
+		span, p {
+			vertical-align: middle;
+			margin: 0px;
+			text-align: left;
+		}
+		&:hover {
+			background-color: rgba(0,0,0,0.5);
+		}
+		canvas {
+			width: 64px;
+			height: 64px;
+			margin: 0px;
+			float: left;
+			position: relative;
+			left: -10px;
+		}
+		.subtext {
+			color: grey;
+		}
+	}
+	&::after {
+		content: "";
+		height: 3px;
+		width: 100%;
+		background-color: var(--highlight-color);
+		display: block;
+	}
+}
+.no_min_height {
+	max-height: min(var(--max-height), 100vh);
+	min-height: min(var(--min-height), 100vh);
+}

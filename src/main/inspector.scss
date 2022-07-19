@@ -1,0 +1,53 @@
+.main_canvas {
+	width: 128px;
+	height: 128px;
+	float: left;
+}
+.other_canvas {
+	width: 64px;
+	height: 64px;
+	float: left;
+}
+
+.name {
+	color: white;
+	display: block;
+	margin-top: 0.1em;
+}
+.ref {
+	color: grey;
+	display: block;
+}
+
+.clear {
+	clear: both;
+}
+
+.subobject {
+	margin-bottom: 2px;
+}
+
+.inspect_button, .follow_button {
+	cursor: pointer;
+	background: transparent;
+	border: none;
+	color: inherit;
+	font: inherit;
+	line-height: 1em;
+	min-height: 2.5em;
+	margin: 0px;
+	padding: 0px;
+	padding-left: 10px;
+	padding-right: 10px;
+	text-align: left;
+	&:hover {
+		background-color: rgba(0,0,0,0.5);
+	}
+}
+.inspect_button {
+	width: 100%;
+}
+.follow_button {
+	padding-top: 0.25em;
+	padding-bottom: 0.25em;
+}

@@ -1,0 +1,63 @@
+html {
+	overflow: hidden;
+	width: 100%;
+	height: 100%;
+}
+body {
+	height: 100%;
+	background-color: #202020;
+	color: white;
+}
+
+.corner_container {
+	.menu_button {
+		padding: 10px;
+		margin: 5px;
+		border: 0px solid transparent;
+		border-radius: 100%;
+		background-color: rgba(0, 0, 0, 0.2);
+		transition: linear background-color 0.1s;
+		box-sizing: content-box;
+		width: 1em;
+		height: 1em;
+		font-size: 25px;
+		line-height:1em;
+		cursor: pointer;
+		float: left;
+		color:white;
+		font-weight: bold;;
+		&:hover {
+			background-color: rgba(0, 0, 0, 0.6);
+		}
+		&::after {
+			content: "⋮";
+		}
+		pointer-events: all;
+	}
+	left:0px;
+	top:0px;
+	min-width: min(100vw,200px);
+    min-height: min(100vh,200px);
+    background-image: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, transparent 50%, transparent 100%);
+	background-position: top left;
+	background-size: 200px 200px;
+	background-repeat: no-repeat;
+	position: absolute;
+	z-index: 1;
+	pointer-events: none;
+
+	.nerdy_stats {
+		color: #ff8888;
+		font-size: 20px;
+		padding: 10px;
+		margin: 0px;
+		top: 0px;
+		left: 0px;
+		max-width: 100vw;
+		pointer-events: none;
+		user-select: none;
+		word-break: break-all;
+		display: none;
+		text-shadow: 0 0 3px black, 0 0 3px black, 0 0 3px black, 0 0 3px black;
+	}
+}
