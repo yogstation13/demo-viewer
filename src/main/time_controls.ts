@@ -38,7 +38,7 @@ export class DemoPlayerTimeControls {
 
 	private set_time;
 
-	playback_speed = 1;
+	playback_speed = 0;
 	playback_speed_override = 0;
 	dragging = false;
 	private handle_input = (e : Event) => {

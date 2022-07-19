@@ -293,9 +293,11 @@ export class DemoPlayerGlHolder {
 	}
 	create_blank_texture(width : number, height : number) {
 		const gl = this.gl;
+		const gl2 = this.gl2;
 		const tex = not_null(gl.createTexture());
 		gl.bindTexture(gl.TEXTURE_2D, tex);
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+		if(gl2) gl2.texStorage2D(gl.TEXTURE_2D, 1, (gl as unknown as {RGBA8:number}).RGBA8, width, height);
+		else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);

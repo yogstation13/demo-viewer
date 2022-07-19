@@ -636,6 +636,20 @@ export class DemoPlayer {
 		return things;
 	}
 
+	get_clicked_object_ref(x : number, y : number) {
+		let objs = this.last_objects;
+		for(let i = objs.length-1; i >= 0; i--) {
+			let thing = objs[i];
+			let atom = thing.get_click_target();
+			if(!atom) continue;
+			let [ox, oy] = thing.get_offset(this);
+			if(thing.appearance && Appearance.check_appearance_click(thing.appearance, x*32-ox, y*32-oy, false)) {
+				return atom.ref;
+			}
+		}
+		return undefined;
+	}
+
 	get_clients_mobs() {
 		let clients : {name: string, ref: number, ckey: string}[] = [];
 		for(let client of [...this.clients].sort()) {
