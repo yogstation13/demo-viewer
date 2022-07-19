@@ -21,7 +21,6 @@ export class StreamQueue<R = any> {
 						} else {
 							if(chunk.value instanceof Uint8Array) {
 								this.bytes_read += chunk.value.length;
-								console.log(chunk.value.length + " bytes");
 							}
 							controller.enqueue(chunk.value);
 							acted = true;

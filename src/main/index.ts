@@ -68,7 +68,6 @@ function stream_replay(response : Response, url:string) {
 		throw new Error("No stream!");
 	}
 	stream_queue.add(response.body);
-	console.log(response);
 	stream_queue.wait_empty().then(async () => {
 		let last_succeeded = false;
 		while(is_streamable_replay(response)) {

@@ -48,7 +48,7 @@ const config = {
 				this.emitFile({
 					fileName: 'favicon.ico',
 					type: 'asset',
-					source: readFileSync('favicon.ico', 'utf8')
+					source: readFileSync('favicon.ico')
 				});
 			}
 		}
