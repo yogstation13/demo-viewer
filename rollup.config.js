@@ -1,7 +1,7 @@
 import rimraf from "rimraf";
 import typescript from '@rollup/plugin-typescript';
 import htmlPlugin from "./lib/html";
-import nodeResolve from "rollup-plugin-node-resolve";
+import nodeResolve from "@rollup/plugin-node-resolve";
 import postcss from 'rollup-plugin-postcss';
 import { terser } from "rollup-plugin-terser";
 import OMT from "@surma/rollup-plugin-off-main-thread";

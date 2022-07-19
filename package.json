@@ -7,6 +7,7 @@
     "serve": "http-server dist -c-1 -g -p 28453"
   },
   "devDependencies": {
+    "@rollup/plugin-node-resolve": "^13.3.0",
     "@rollup/plugin-typescript": "^8.3.1",
     "@surma/rollup-plugin-off-main-thread": "^2.2.3",
     "@types/pako": "^2.0.0",
@@ -15,10 +16,10 @@
     "postcss": "^8.4.14",
     "rimraf": "^3.0.2",
     "rollup": "^2.70.1",
-    "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-postcss": "^4.0.2",
     "rollup-plugin-terser": "^7.0.2",
     "sass": "^1.5.1",
+    "tslib": "^2.3.1",
     "typescript": "^4.6.2"
   },
   "dependencies": {

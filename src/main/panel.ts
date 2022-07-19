@@ -137,7 +137,6 @@ export class Panel extends EventTarget {
 	toggle_transparent = () => {
 		if(this.container_div.classList.contains(classes.docked)) return;
 		this.panel_div.classList.toggle(classes.transparent);
-		console.log("toggle_transparent", performance.now());
 	}
 	toggle_collapse = () => {
 		this.panel_div.classList.toggle(classes.collapsed);
