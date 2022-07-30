@@ -33,7 +33,10 @@ export class Resource {
 				if(!res.ok) throw new Error("Fetch returned (" + res.status + ") " + res.statusText);
 				let blob = await res.blob();
 				if(abort == this._load_abort) this._load_abort = undefined;
-				if(!this.data) this.data = blob;
+				if(!this.data) {
+					this.data = blob;
+					for(let cb of this.icon_load_callbacks) cb();
+				}
 			} finally {
 				if(abort) {
 					abort.abort("An error occured");

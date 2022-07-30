@@ -12,6 +12,9 @@ import { DrawBuffer } from "./rendering/buffer";
 import { LONG_GLIDE, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM } from "../misc/constants";
 import { matrix_is_identity, matrix_multiply } from "../misc/matrix";
 import { despam_promise } from "../misc/promise_despammer";
+import { view_turfs } from "./view";
+
+const empty_arr : [] = [];
 
 export class DemoPlayer {
 	parser_interface : Comlink.Remote<DemoParserInterface>;
@@ -120,7 +123,10 @@ export class DemoPlayer {
 		if(playback_speed != 0)
 			this.advance_time_relative(dt / 100 * playback_speed);
 
+		let view_origin : Turf|undefined;
+		let view_dist = 0;
 		let follow_data : {ref:number|string,x:number,y:number}|undefined;
+		let followview_window : {x:number,y:number,width:number,height:number}|undefined;
 		if(turf_window.follow) {
 			let iterated_set = new Set()
 			let ref = turf_window.follow.ref;
@@ -142,6 +148,12 @@ export class DemoPlayer {
 					x += 16;
 					y += 16;
 				}
+
+				if((atom.ref >> 24) == 3) {
+					view_dist = 7.5;
+					view_origin = atom.loc;
+				}
+
 				follow_data = {ref, x:x/32, y:y/32};
 				this.z_level = atom.loc.z;
 			} else {
@@ -154,6 +166,15 @@ export class DemoPlayer {
 			turf_window.right += dx;
 			turf_window.bottom += dy;
 			turf_window.top += dy;
+
+			if(view_dist) {
+				followview_window = {
+					x: follow_data.x-view_dist,
+					y: follow_data.y-view_dist,
+					width: view_dist*2,
+					height: view_dist*2
+				};
+			}
 		}
 
 		let q_turf_window = {
@@ -190,15 +211,27 @@ export class DemoPlayer {
 		this.last_state_str = state_str;
 		this.use_index++;
 
-		for(let turf of this.current_turfs) {
-			if(turf.z != this.z_level || turf.x < q_turf_window.left || turf.y < q_turf_window.bottom || turf.x >= q_turf_window.right || turf.y >= q_turf_window.top) {
-				this.current_turfs.delete(turf);
+		if(view_origin) {
+			let turfs = new Set(view_turfs(this, view_origin, q_turf_window.left, q_turf_window.bottom, q_turf_window.right, q_turf_window.top, true));
+			for(let turf of this.current_turfs) {
+				if(!turfs.has(turf)) {
+					this.current_turfs.delete(turf);
+				}
 			}
-		}
-		for(let y = q_turf_window.bottom; y < q_turf_window.top; y++) for(let x = q_turf_window.left; x < q_turf_window.right; x++) {
-			let turf = this.get_turf(x,y,this.z_level);
-			if(!turf) continue;
-			this.current_turfs.add(turf);
+			for(let turf of turfs) {
+				this.current_turfs.add(turf);
+			}
+		} else {
+			for(let turf of this.current_turfs) {
+				if(turf.z != this.z_level || turf.x < q_turf_window.left || turf.y < q_turf_window.bottom || turf.x >= q_turf_window.right || turf.y >= q_turf_window.top) {
+					this.current_turfs.delete(turf);
+				}
+			}
+			for(let y = q_turf_window.bottom; y < q_turf_window.top; y++) for(let x = q_turf_window.left; x < q_turf_window.right; x++) {
+				let turf = this.get_turf(x,y,this.z_level);
+				if(!turf) continue;
+				this.current_turfs.add(turf);
+			}
 		}
 
 		let drawing_commands : RenderingCmd[] = [];
@@ -237,7 +270,7 @@ export class DemoPlayer {
 			}
 		});
 		this.draw_object_list(drawing_commands, objects);
-		drawing_commands.push({cmd: "copytoviewport", follow_data});
+		drawing_commands.push({cmd: "copytoviewport", follow_data, followview_window});
 		this.last_objects = objects;
 
 		let packing_rects = [
@@ -325,32 +358,36 @@ export class DemoPlayer {
 		let buffer = this.draw_buffer;
 		let buffer_index = 0;
 		objects.sort((a, b) => {
-			let a_plane = Appearance.resolve_plane(a.appearance?.plane ?? 0);
-			let b_plane = Appearance.resolve_plane(b.appearance?.plane ?? 0);
+			let a_appearance = a.get_appearance(this);
+			let b_appearance = b.get_appearance(this);
+			let a_plane = Appearance.resolve_plane(a_appearance?.plane ?? 0);
+			let b_plane = Appearance.resolve_plane(b_appearance?.plane ?? 0);
 			if(a_plane != b_plane) return a_plane - b_plane;
-			let a_layer = a.appearance?.layer ?? 0;
-			let b_layer = b.appearance?.layer ?? 0;
+			let a_layer = a_appearance?.layer ?? 0;
+			let b_layer = b_appearance?.layer ?? 0;
 			return a_layer - b_layer;
 		});
 
 		for(let thing of objects) {
 			let [x,y] = thing.get_offset(this);
-			let root_appearance = thing.appearance;
+			let root_appearance = thing.get_appearance(this);
 			if(!root_appearance || root_appearance.invisibility > see_invisible) continue;
 			for(let appearance of Appearance.get_appearance_parts(root_appearance)) {
 				if(!appearance.icon_state_dir) {
-					let dir = this.get_appearance_dir(appearance);
+					let dir = this.get_appearance_dir(appearance, buffer.atlas);
 					if(dir) {
 						appearance.icon_state_dir = dir;
 					}
 				}
 				if(appearance.icon_state_dir?.atlas_node) {
-					if(buffer.atlas != appearance.icon_state_dir.atlas_node?.atlas) {
+					if(buffer.atlas != appearance.icon_state_dir.atlas_node?.atlas || (buffer.blend_mode || 1) != (appearance.blend_mode || 1) || buffer.uses_color_matrices != !!appearance.color_matrix) {
 						if(buffer_index) {
 							buffer.add_draw(commands, 0, buffer_index);
 							buffer_index = 0;
 						}
 						buffer.atlas = appearance.icon_state_dir.atlas_node?.atlas as DmiAtlas;
+						buffer.blend_mode = appearance.blend_mode || 1;
+						buffer.uses_color_matrices = !!appearance.color_matrix;
 					}
 					appearance.icon_state_dir.atlas_node.use_index = this.use_index;
 					if(buffer_index >= buffer.get_size()) buffer.expand();
@@ -511,6 +548,12 @@ export class DemoPlayer {
 				}
 			}
 		}
+		if(dir.set_vis_contents) {
+			for(let [ref, vis_contents] of dir.set_vis_contents) {
+				let atom = this.get_atom(ref);
+				atom.vis_contents = vis_contents.length ? vis_contents.filter(Boolean).map(a => this.get_atom(a)) : empty_arr;
+			}
+		}
 		if(dir.set_client_status) {
 			for(let [client, logged_in] of dir.set_client_status) {
 				if(logged_in) this.clients.add(client);
@@ -627,7 +670,8 @@ export class DemoPlayer {
 			let atom = thing.get_click_target();
 			if(!atom || included_things.has(atom)) continue;
 			let [ox, oy] = thing.get_offset(this);
-			if(thing.appearance && Appearance.check_appearance_click(thing.appearance, x*32-ox, y*32-oy, true)) {
+			let appearance = thing.get_appearance(this);
+			if(appearance && Appearance.check_appearance_click(appearance, x*32-ox, y*32-oy, true)) {
 				included_things.add(atom);
 				things.push({name: atom.appearance?.name ?? "null", ref: atom.ref, clients: this.get_object_clients(atom)});
 			}
@@ -643,7 +687,8 @@ export class DemoPlayer {
 			let atom = thing.get_click_target();
 			if(!atom) continue;
 			let [ox, oy] = thing.get_offset(this);
-			if(thing.appearance && Appearance.check_appearance_click(thing.appearance, x*32-ox, y*32-oy, false)) {
+			let appearance = thing.get_appearance(this);
+			if(appearance && Appearance.check_appearance_click(appearance, x*32-ox, y*32-oy, false)) {
 				return atom.ref;
 			}
 		}
@@ -707,7 +752,7 @@ export class DemoPlayer {
 }
 
 export abstract class Renderable {
-	abstract appearance : Appearance|null;
+	abstract get_appearance(player:DemoPlayer) : Appearance|null;
 	get_offset(player:DemoPlayer) : [number,number] {return [0,0];}
 	get_click_target() : Atom|null {return null;};
 }
@@ -716,6 +761,8 @@ export class Atom extends Renderable {
 	appearance: Appearance|null = null;
 	private _loc: Atom|null = null;
 	contents: Atom[] = [];
+	vis_contents: Atom[] = empty_arr;
+	combined_appearance : (Appearance & {vis_contents_appearances : Appearance[]})|null = null;
 	constructor(public ref: number) {super()}
 	set loc(val : Atom|null) {
 		if(val == this._loc) return;
@@ -738,6 +785,51 @@ export class Atom extends Renderable {
 	}
 
 	get_click_target() : Atom|null {return this;}
+
+	get_appearance(player: DemoPlayer, vis_contents_depth = 100): Appearance | null {
+		if(vis_contents_depth <= 0) {
+			console.warn(`Deep (possibly looping) vis_contents detected at [0x${this.ref.toString(16)}]. Pruning.`);
+			this.vis_contents = empty_arr;
+		}
+		if(!this.appearance) {
+			this.combined_appearance = null;
+			return null;
+		}
+		if(this.vis_contents.length) {
+			let vis_contents_appearances : Appearance[] = [];
+			for(let thing of this.vis_contents) {
+				let appearance = thing.get_appearance(player, vis_contents_depth - 1);
+				if(appearance) vis_contents_appearances.push(appearance);
+			}
+			if(!vis_contents_appearances.length) {
+				this.combined_appearance = null;
+				return this.appearance;
+			}
+			let matches = true;
+			if(!this.combined_appearance || this.combined_appearance.derived_from != this.appearance || vis_contents_appearances.length != this.combined_appearance.vis_contents_appearances.length) {
+				matches = false;
+			} else {
+				for(let i = 0; i < vis_contents_appearances.length; i++) {
+					if(vis_contents_appearances[i] != this.combined_appearance.vis_contents_appearances[i]) {
+						matches = false;
+						break;
+					}
+				}
+			}
+			if(!matches || !this.combined_appearance) {
+				this.combined_appearance = {
+					...this.appearance,
+					overlays: [...this.appearance.overlays, ...vis_contents_appearances],
+					derived_from: this.appearance,
+					vis_contents_appearances
+				}
+			}
+			return this.combined_appearance;
+		} else {
+			this.combined_appearance = null;
+			return this.appearance;
+		}
+	}
 }
 
 export class Obj extends Atom {
@@ -747,7 +839,7 @@ export class Obj extends Atom {
 	get_offset(player:DemoPlayer) : [number,number] {
 		let [x,y] = super.get_offset(player);
 		let loc = this.loc;
-		if(!this.appearance || !(this.last_loc instanceof Turf) || !(loc instanceof Turf) || loc == this.last_loc || loc.z != this.last_loc.z || player.time < this.loc_change_time) return [x,y];
+		if(!this.appearance || !this.appearance.animate_movement || !(this.last_loc instanceof Turf) || !(loc instanceof Turf) || loc == this.last_loc || loc.z != this.last_loc.z || player.time < this.loc_change_time) return [x,y];
 		let [px,py] = this.last_loc.get_offset(player);
 		let dx = px-x;
 		let dy = py-y;
@@ -778,6 +870,9 @@ export class OverlayProxy extends Renderable {
 
 	get_offset(player:DemoPlayer) : [number,number]  {
 		return this.parent.get_offset(player);
+	}
+	get_appearance(player: DemoPlayer): Appearance | null {
+		return this.appearance;
 	}
 }
 

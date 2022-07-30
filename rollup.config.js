@@ -7,7 +7,7 @@ import { terser } from "rollup-plugin-terser";
 import OMT from "@surma/rollup-plugin-off-main-thread";
 import {readFileSync} from "fs";
 
-rimraf.sync("dist");
+//rimraf.sync("dist");
 
 /**
  * @type {import('rollup').RollupOptions}
@@ -33,7 +33,7 @@ const config = {
 		}),
 		OMT(),
 		htmlPlugin(),
-		terser(),
+		//terser(),
 		{
 			name: 'files-plugin',
 			buildStart() {

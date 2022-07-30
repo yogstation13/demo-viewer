@@ -5,6 +5,7 @@
 	top: 0px;
 	left: 0px;
 	overflow: hidden;
+	isolation: isolate;
 	background-color: black;
 	touch-action: none;
 }
@@ -44,4 +45,13 @@
 		}
 	}
 	z-index: 1;
+}
+
+.followview {
+	z-index: 1;
+	border: 10000px solid rgba(0,0,0,0.8);
+	margin: -10000px;
+	box-sizing: content-box;
+	display: none;
+	pointer-events: none;
 }

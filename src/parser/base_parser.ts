@@ -1,5 +1,7 @@
 import { Appearance, BaseAppearance, ReaderAppearance } from "../misc/appearance";
 
+const empty_arr : [] = [];
+
 export abstract class DemoParser {
 	abstract handle_data(data : Uint8Array) : void|Promise<void>;
 
@@ -57,6 +59,14 @@ export abstract class DemoParser {
 					running.loc = loc;
 				}
 			}
+			if(frame.forward.set_vis_contents) {
+				frame.backward.set_vis_contents = new Map();
+				for(let [atom, vis_contents] of frame.forward.set_vis_contents) {
+					let running = this.get_running_atom(atom);
+					frame.backward.set_vis_contents.set(atom, running.vis_contents);
+					running.vis_contents = vis_contents;
+				}
+			}
 			if(frame.forward.set_client_status) {
 				frame.backward.set_client_status = new Map();
 				for(let [client, status] of frame.forward.set_client_status) {
@@ -100,7 +110,8 @@ export abstract class DemoParser {
 				appearance: null,
 				loc: 0,
 				loc_change_time: 0,
-				last_loc: 0
+				last_loc: 0,
+				vis_contents: empty_arr
 			};
 		}
 		return running;
@@ -128,6 +139,11 @@ export abstract class DemoParser {
 	protected add_chat(msg : DemoChatMessage) {
 		if(!this.current_frame.chat) this.current_frame.chat = [];
 		this.current_frame.chat.push(msg);
+	}
+	protected set_vis_contents(atom:number, vis_contents: number[]) {
+		if(vis_contents.length == 0) vis_contents = empty_arr;
+		if(!this.current_frame.forward.set_vis_contents) this.current_frame.forward.set_vis_contents = new Map();
+		this.current_frame.forward.set_vis_contents.set(atom, vis_contents);
 	}
 
 	private appearance_id_cache = new Map<string, number>();
@@ -177,6 +193,7 @@ export interface BaseDemoFrameDirection<T> {
 	set_loc_change_time? : Map<number,number>;
 	set_client_status? : Map<string, boolean>;
 	set_mob? : Map<string, number>;
+	set_vis_contents? : Map<number,number[]>;
 	resize? : [number,number,number];
 }
 export interface DemoChatMessage {
@@ -189,6 +206,7 @@ export interface RunningAtom {
 	loc : number;
 	last_loc : number;
 	loc_change_time : number;
+	vis_contents : number[];
 }
 
 export interface ReaderDemoBatchData {

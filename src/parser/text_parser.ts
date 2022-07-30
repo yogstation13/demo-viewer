@@ -357,6 +357,7 @@ export class DemoParserText extends DemoParser {
 		if(p.curr() != ';') appearance.plane = p.read_number();
 		if(p.read_next_or_end()) return appearance;
 		if(p.curr() != ';') appearance.dir = p.read_number();
+		if(appearance.dir == 0) appearance.dir_override = false;
 		if(p.read_next_or_end()) return appearance;
 		if(p.curr() != ';') {
 			if(p.curr() == 'w') {

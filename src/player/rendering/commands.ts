@@ -14,6 +14,7 @@ export interface CmdViewport extends BaseRenderingCmd {
 export interface CmdCopyToViewport extends BaseRenderingCmd {
 	cmd: "copytoviewport";
 	follow_data?: FollowDesc;
+	followview_window?: {x:number,y:number,width:number,height:number};
 }
 export interface CmdCopyToCanvas extends BaseRenderingCmd {
 	cmd: "copytocanvas";
@@ -55,6 +56,7 @@ export interface CmdBatchDraw extends BaseRenderingCmd {
 	cmd: "batchdraw";
 	atlas_index: number;
 	blend_mode: number;
+	use_color_matrix : boolean;
 	data: Float32Array;
 	num_elements: number;
 }

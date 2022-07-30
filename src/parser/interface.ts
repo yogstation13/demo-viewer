@@ -1,5 +1,6 @@
 import { create_exposed_promise } from "../misc/exposed_promise";
 import { DemoParser, ReaderDemoBatchData } from "./base_parser";
+import { DemoParserBinary } from "./binary_parser";
 import { DemoParserText } from "./text_parser";
 
 export class DemoParserInterface {
@@ -7,7 +8,11 @@ export class DemoParserInterface {
 	private _frame_callbacks : Array<() => void> = [];
 	public async handle_data(data : Uint8Array) {
 		if(!this._parser) {
-			this._parser = new DemoParserText(this._frame_callbacks, this.rev_data.resolve);
+			if(data[0] == 0xCB) {
+				this._parser = new DemoParserBinary(this._frame_callbacks, this.rev_data.resolve);
+			} else {
+				this._parser = new DemoParserText(this._frame_callbacks, this.rev_data.resolve);
+			}
 			if(this._progress_callback) this._parser.progress_callback = this._progress_callback;
 		}
 		await this._parser.handle_data(data);

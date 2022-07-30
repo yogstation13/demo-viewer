@@ -12,6 +12,8 @@ export class DemoPlayerViewport {
 
 	viewport_elements : ViewportElement[] = [];
 
+	followview : ViewportElement = {elem: document.createElement("div"), x:0,y:0,width:0,height:0};
+
 	x : number = 128;
 	y : number = 128;
 	log_zoom : number = 0;
@@ -45,6 +47,9 @@ export class DemoPlayerViewport {
 
 		this.viewport_div.addEventListener("contextmenu", this.handle_contextmenu);
 		this.viewport_div.addEventListener("dblclick", this.handle_doubleclick);
+
+		this.followview.elem.classList.add(classes.followview);
+		this.add_viewport_element(this.followview);
 
 		let stop_following_container = document.createElement("div");
 		stop_following_container.classList.add(classes.stop_following_container);

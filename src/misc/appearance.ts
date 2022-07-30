@@ -21,6 +21,13 @@ export interface BaseAppearance<T> {
 	invisibility : number;
 	overlays : T[];
 	underlays : T[];
+	opacity : boolean;
+	density : boolean;
+	dir_override : boolean;
+	color_matrix : Float32Array|null;
+	maptext : {maptext: string, x:number, y:number, width:number, height:number}|null;
+	mouse_opacity: number;
+	animate_movement : number;
 }
 
 interface AppearanceCachedData {
@@ -77,7 +84,7 @@ export namespace Appearance {
 				overlay = {...overlay};
 			}
 		}
-		if(!overlay.dir) {
+		if(overlay.dir != appearance.dir && !overlay.dir_override) {
 			clone();
 			overlay.dir = appearance.dir;
 		}
@@ -141,7 +148,7 @@ export namespace Appearance {
 	export function check_appearance_click(appearance : Appearance, x:number, y:number, full_mouse_opacity = false) {
 		let parts = get_appearance_parts(appearance);
 		for(let i = parts.length-1; i >= 0; i--) {
-			let mouse_opacity = full_mouse_opacity ? 2 : 1;
+			let mouse_opacity = full_mouse_opacity ? 2 : appearance.mouse_opacity;
 			if(mouse_opacity == 0) continue;
 			let part = parts[i];
 			let inv_mat = matrix_invert([...part.transform]);
@@ -187,6 +194,13 @@ export namespace ReaderAppearance {
 		transform: [1,0,0,0,1,0],
 		invisibility: 0,
 		overlays: [],
-		underlays: []
+		underlays: [],
+		opacity: false,
+		density: false,
+		dir_override: true,
+		color_matrix: null,
+		maptext: null,
+		mouse_opacity: 1,
+		animate_movement: 1
 	};
 }

@@ -43,30 +43,34 @@ export class DrawBuffer {
 		fa[off+10] = 1-Math.max(Math.min(appearance.layer / MAX_LAYER, 1), 0);
 		let color_alpha = appearance.color_alpha;
 		if(this.uses_color_matrices) {
-			fa[off+11] = (color_alpha & 0xFF) / 0xFF;
-			fa[off+12] = 0;
-			fa[off+13] = 0;
-			fa[off+14] = 0;
+			if(appearance.color_matrix) {
+				fa.set(appearance.color_matrix, off+11);
+			} else {
+				fa[off+11] = (color_alpha & 0xFF) / 0xFF;
+				fa[off+12] = 0;
+				fa[off+13] = 0;
+				fa[off+14] = 0;
 
-			fa[off+15] = 0;
-			fa[off+16] = ((color_alpha >> 8) & 0xFF) / 0xFF;
-			fa[off+17] = 0;
-			fa[off+18] = 0;
+				fa[off+15] = 0;
+				fa[off+16] = ((color_alpha >> 8) & 0xFF) / 0xFF;
+				fa[off+17] = 0;
+				fa[off+18] = 0;
 
-			fa[off+19] = 0;
-			fa[off+20] = 0;
-			fa[off+21] = ((color_alpha >> 16) & 0xFF) / 0xFF;
-			fa[off+22] = 0;
+				fa[off+19] = 0;
+				fa[off+20] = 0;
+				fa[off+21] = ((color_alpha >> 16) & 0xFF) / 0xFF;
+				fa[off+22] = 0;
 
-			fa[off+23] = 0;
-			fa[off+24] = 0;
-			fa[off+25] = 0;
-			fa[off+26] = ((color_alpha >> 24) & 0xFF) / 0xFF;
+				fa[off+23] = 0;
+				fa[off+24] = 0;
+				fa[off+25] = 0;
+				fa[off+26] = ((color_alpha >> 24) & 0xFF) / 0xFF;
 
-			fa[off+27] = 0;
-			fa[off+28] = 0;
-			fa[off+29] = 0;
-			fa[off+30] = 0;
+				fa[off+27] = 0;
+				fa[off+28] = 0;
+				fa[off+29] = 0;
+				fa[off+30] = 0;
+			}
 		} else {
 			fa[off+11] = (color_alpha & 0xFF) / 0xFF;
 			fa[off+12] = ((color_alpha >> 8) & 0xFF) / 0xFF;
@@ -95,6 +99,7 @@ export class DrawBuffer {
 			cmd: "batchdraw",
 			atlas_index: this.atlas?.tex_index ?? 0,
 			blend_mode: this.blend_mode,
+			use_color_matrix: this.uses_color_matrices,
 			data: slice,
 			transferables: [slice.buffer],
 			num_elements: end-start

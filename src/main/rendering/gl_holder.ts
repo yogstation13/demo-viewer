@@ -203,7 +203,7 @@ export class DemoPlayerGlHolder {
 			} else if(cmd.cmd == "batchdraw") {
 				let tex = not_null(this.atlas_textures[cmd.atlas_index]);
 				this.set_blend_mode(cmd.blend_mode);
-				let shader = this.shader;
+				let shader = cmd.use_color_matrix ? this.shader_matrix : this.shader;
 				this.set_shader(shader);
 
 				gl.activeTexture(gl.TEXTURE0);
@@ -214,7 +214,7 @@ export class DemoPlayerGlHolder {
 				gl.uniform2f(shader.u_viewport_center, (curr_viewport.x+curr_viewport.width/2)*icon_width, (curr_viewport.y+curr_viewport.height/2)*icon_height);
 				gl.uniform1f(shader.u_zoom, 1);
 				
-				let stride = 15 * 4;
+				let stride = (cmd.use_color_matrix ? 31 : 15) * 4;
 				gl.bindBuffer(gl.ARRAY_BUFFER, this.square_buffer);
 				gl.vertexAttribPointer(shader.a_position, 2, gl.FLOAT, false, 0, 0);
 				let buf = gl.createBuffer();
@@ -239,6 +239,7 @@ export class DemoPlayerGlHolder {
 				let this_viewport_pixel = curr_viewport_pixel;
 				let this_viewport = curr_viewport;
 				let this_follow = cmd.follow_data;
+				let this_followview = cmd.followview_window;
 				flushables.push(async (canvas_bitmap : ImageBitmap|HTMLCanvasElement) => {
 					let bitmap = await createImageBitmap(canvas_bitmap, this_viewport_pixel.x, gl.canvas.height-this_viewport_pixel.height-this_viewport_pixel.y, this_viewport_pixel.width, this_viewport_pixel.height);
 					let canvas = this.viewport_canvas.elem as HTMLCanvasElement;
@@ -249,6 +250,12 @@ export class DemoPlayerGlHolder {
 
 					ctx.drawImage(bitmap, 0, 0);
 					Object.assign(this.viewport_canvas, this_viewport);
+					if(this_followview) {
+						Object.assign(this.ui.viewport.followview, this_followview);
+						this.ui.viewport.followview.elem.style.display = "block";
+					} else {
+						this.ui.viewport.followview.elem.style.display = "none";
+					}
 					let old_follow = this.ui.viewport.current_follow
 					if(this_follow && old_follow && this_follow.ref == old_follow.ref) {
 						if(this_follow.x != null) {
