@@ -10,6 +10,7 @@ export class Panel extends EventTarget {
 	protected close_button = document.createElement("button");
 	protected collapse_button = document.createElement("button");
 	protected transparent_button? : HTMLButtonElement;
+	protected menu_button? : HTMLButtonElement;
 	protected title_span = document.createElement("span");
 	protected drag_handle_div = document.createElement("div");
 
@@ -132,6 +133,17 @@ export class Panel extends EventTarget {
 		button.addEventListener("click", this.toggle_transparent);
 		this.header_div.appendChild(button);
 		this.transparent_button = button;
+	}
+
+	add_menu_button(cb : (button:HTMLButtonElement) => void) {
+		if(this.menu_button) return;
+		let button = document.createElement("button");
+		button.classList.add(classes.menu_button);
+		button.addEventListener("click", () => {
+			cb(button);
+		});
+		this.header_div.appendChild(button);
+		this.menu_button = button;
 	}
 
 	toggle_transparent = () => {
