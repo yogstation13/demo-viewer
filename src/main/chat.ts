@@ -1,3 +1,4 @@
+import { ChatOptionsMenu } from "./menu";
 import { Panel } from "./panel";
 import { DemoPlayerUi } from "./ui";
 import * as Comlink from "comlink";
@@ -7,7 +8,7 @@ import { despam_promise } from "../misc/promise_despammer";
 export class ChatPanel extends Panel {
 	private remove_frame_callback : undefined|Promise<()=>void>;
 
-	follow_follower = true;
+	public follow_follower = true;
 	chat_target : string|undefined = undefined;
 
 	constructor(public ui : DemoPlayerUi, in_corner = true) {
@@ -15,6 +16,9 @@ export class ChatPanel extends Panel {
 		let follow_ref = this.ui.viewport.current_follow?.ref
 		if(typeof follow_ref == "string") this.chat_target = follow_ref;
 		this.add_transparent_toggle();
+		this.add_menu_button(b => {
+			new ChatOptionsMenu(this).put_below(b).open();
+		});
 		this.set_fixed_size("min(800px, 80vw)", "min(600px, 45vh)");
 		if(in_corner) {
 			if(PlayerOptions.get("startup_chat_transparent") != "false") this.toggle_transparent();
@@ -140,5 +144,15 @@ export class ChatPanel extends Panel {
 		if(!this.scrolled_to_bottom) return;
 		this.content_div.scrollTop = Math.ceil(this.content_div.scrollHeight);
 		this.scrolled_to_bottom = true;
+	}
+
+	adjust_font_size(adj : number) {
+		let font_size = 17;
+		let comp = window.getComputedStyle(this.content_div).fontSize;
+		if(comp.endsWith("px")) font_size = +(comp.substring(0, comp.length-2)) || font_size;
+		font_size += adj;
+		font_size = Math.max(Math.min(font_size, 30), 1);
+		this.content_div.style.fontSize = font_size + "px";
+		this.update_content_scroll();
 	}
 }

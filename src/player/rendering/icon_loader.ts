@@ -252,6 +252,23 @@ const loader = {
 		for(let frame of allframes) {
 			frame.sprite_data = image_datas.get(frame.sprite_hash) ?? frame.sprite_data;
 		}
+		for(let state of icon.icon_states.values()) {
+			if(!state.dirs.length && state.movement_state && state.movement_state.dirs.length) {
+				state.dirs = state.movement_state.dirs.map(dir => ({
+					current_frame: undefined,
+					atlas_node: undefined,
+					frames: [
+						{
+							...dir.frames[0],
+							atlas_node: undefined
+						}
+					],
+					total_delay: dir.frames[0].delay
+				}));
+				state.num_dirs = state.dirs.length;
+				state.requires_sorting = state.movement_state.requires_sorting;
+			}
+		}
 		return Comlink.transfer(icon, [big_buf.buffer]);
 	},
 	set_png_loader(port : MessagePort) {

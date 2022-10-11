@@ -143,6 +143,13 @@
 		transition: linear 0.1s transform;
 	}
 }
+.menu_button {
+	float: right;
+	&::after {
+		display: inline-block;
+		content: "⋮";
+	}
+}
 
 .panel_content {
 	padding: 8px;

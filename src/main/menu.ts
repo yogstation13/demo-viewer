@@ -9,7 +9,7 @@ import { ChatPanel } from "./chat";
 export class Menu extends Panel {
 	constructor() {
 		super("", true);
-		this.panel_div.style.setProperty("--max-height", "calc(90vh;)");
+		this.panel_div.style.setProperty("--max-height", "calc(90vh)");
 		this.panel_div.removeChild(this.header_div);
 		this.panel_div.removeChild(this.drag_handle_div);
 		this.panel_div.classList.add(classes.no_min_height);
@@ -45,6 +45,13 @@ export class Menu extends Panel {
 		this.panel_div.style.top = rect.y + "px";
 		return this;
 	}
+	put_below(elem : HTMLElement) {
+		this.enable_absolute_position();
+		let rect = elem.getBoundingClientRect();
+		this.panel_div.style.left = rect.x + "px";
+		this.panel_div.style.top = (rect.y+rect.height) + "px";
+		return this;
+	}
 }
 
 export class MainMenu extends Menu {
@@ -61,7 +68,7 @@ export class MainMenu extends Menu {
 			this.ui.player.adjust_z(-1);
 		});
 		let clients_button = this.add_basic_button("Clients", null, () => {
-			new Clients(this.ui, this).put_to_right(clients_button).open(true);
+			new ClientsMenu(this.ui, this).put_to_right(clients_button).open(true);
 		});
 		this.add_basic_button("Stats for Nerds", null, () => {
 			this.ui.nerdy_stats.style.display = (this.ui.nerdy_stats.style.display == "block") ? "none" : "block";
@@ -166,7 +173,7 @@ class ContextActionMenu extends Menu {
 	}
 }
 
-class Clients extends Menu {
+class ClientsMenu extends Menu {
 	load_spinner : ProgressSpinner;
 	constructor(public ui : DemoPlayerUi, public parent : Menu) {
 		super();
@@ -202,6 +209,27 @@ class Clients extends Menu {
 		});
 		this.addEventListener("close", () => {
 			this.parent.panel_div.focus();
+		});
+	}
+}
+
+
+export class ChatOptionsMenu extends Menu {
+	constructor(public parent : ChatPanel) {
+		super();
+		this.add_basic_button(parent.follow_follower ? "Lock Target" : "Unlock Target", null, () => {
+			parent.follow_follower = !parent.follow_follower;
+			if(parent.follow_follower) {
+				let follow_ref = parent.ui.viewport.current_follow?.ref;
+				parent.set_chat_target(typeof follow_ref == "string" ? follow_ref : undefined);
+			}
+			this.close();
+		});
+		this.add_basic_button("Increase Font Size", null, () => {
+			parent.adjust_font_size(1);
+		});
+		this.add_basic_button("Decrease Font Size", null, () => {
+			parent.adjust_font_size(-1);
 		});
 	}
 }

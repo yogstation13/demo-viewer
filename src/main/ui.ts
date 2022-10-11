@@ -49,10 +49,7 @@ export class DemoPlayerUi {
 		this.nerdy_stats.classList.add(classes.nerdy_stats);
 		this.menu_button.addEventListener("click", () =>{
 			if(!this.menu) this.menu = new MainMenu(this);
-			let rect = this.menu_button.getBoundingClientRect();
-			this.menu.enable_absolute_position();
-			this.menu.panel_div.style.left = rect.x+"px";
-			this.menu.panel_div.style.top = (rect.y+rect.height)+"px";
+			this.menu.put_below(this.menu_button);
 			this.menu.open();
 		})
 		
