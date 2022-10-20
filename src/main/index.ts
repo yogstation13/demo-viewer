@@ -136,6 +136,15 @@ if(url) {
 			document.body.style.fontSize = "40px";
 		});;
 		stream_to_interface(parser, new OptionalXzReadableStream(fileselect.files[0].stream() as unknown as ReadableStream));
+		/*let stream = new OptionalXzReadableStream(fileselect.files[0].stream() as unknown as ReadableStream)
+		let res = new Response(stream);
+		res.blob().then(blob => {
+			let url = URL.createObjectURL(blob);
+			let a = document.createElement("a");
+			a.download = "demothing.bin";
+			a.href = url;
+			a.click();
+		});*/
 	});
 	document.body.appendChild(fileselect);
 	document.body.appendChild(button);

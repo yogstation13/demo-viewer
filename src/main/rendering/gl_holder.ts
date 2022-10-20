@@ -3,6 +3,7 @@ import { not_null } from "../../misc/gl_util";
 import { CopyShader, get_copy_shader, get_icon_shader, IconShader, ShaderHolder } from "./shader";
 import { RenderingCmd } from "../../player/rendering/commands";
 import { ViewportElement } from "../viewport";
+import { render_maptext } from "./maptext";
 
 export class DemoPlayerGlHolder {
 	gl : WebGLRenderingContext;
@@ -145,6 +146,27 @@ export class DemoPlayerGlHolder {
 				for(let part of cmd.parts) {
 					gl.texSubImage2D(gl.TEXTURE_2D, 0, part.x, part.y, part.width, part.height, gl.RGBA, gl.UNSIGNED_BYTE, part.data);
 					tex.static_copy_dirty = true;
+				}
+				gl.bindTexture(gl.TEXTURE_2D, null);
+			} else if(cmd.cmd == "atlastexmaptext") {
+				let parts = await Promise.all(cmd.parts.map(async thing => {
+					return {
+						...thing,
+						data: await render_maptext(thing.maptext, thing.width, thing.height)
+					}
+				}));
+
+				let tex = not_null(this.atlas_textures[cmd.index]);
+				gl.bindTexture(gl.TEXTURE_2D, tex.texture);
+				gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+				for(let part of parts) {
+					try {
+						gl.texSubImage2D(gl.TEXTURE_2D, 0, part.x, part.y, gl.RGBA, gl.UNSIGNED_BYTE, part.data);	
+					} catch(e) {
+						console.warn(part.maptext);
+						console.error(e);
+						gl.texSubImage2D(gl.TEXTURE_2D, 0, part.x, part.y, part.width, part.height, gl.RGBA, gl.UNSIGNED_BYTE, null);
+					}
 				}
 				gl.bindTexture(gl.TEXTURE_2D, null);
 			} else if(cmd.cmd == "atlestexcopywithin") {
@@ -373,5 +395,33 @@ export class DemoPlayerGlHolder {
 			}
 		}
 		this.attrib_arrays_enabled = desired_attrib_arrays;
+	}
+
+	dump_textures() {
+		const gl = this.gl;
+		let urls = this.atlas_textures.map(tex => {
+			if(!tex) return null;
+			gl.bindFramebuffer(gl.FRAMEBUFFER, this.copy_framebuffer);
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex.texture, 0);
+			//let buf = new Uint8Array(tex.width*tex.height*4);
+			let image_data = new ImageData(tex.width, tex.height);
+			gl.readPixels(0, 0, tex.width, tex.height, gl.RGBA, gl.UNSIGNED_BYTE, image_data.data);
+			let canvas = document.createElement("canvas");
+			canvas.width = tex.width;
+			canvas.height = tex.height;
+			let ctx = canvas.getContext('2d');
+			if(ctx) {
+				ctx.putImageData(image_data, 0, 0);
+				return canvas.toDataURL();
+			}
+		});
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		let checker_url = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw1AUhU9TxSoVBzsUcchQXbQgKuIoVSyChdJWaNXB5KV/0KQhSXFxFFwLDv4sVh1cnHV1cBUEwR8QRycnRRcp8b6k0CLGC4/3cd49h/fuA4RGhalm1wSgapaRisfEbG5V7HlFL8LwIYAxiZl6Ir2YgWd93VMn1V2UZ3n3/Vn9St5kgE8knmO6YRFvEM9sWjrnfeIQK0kK8TnxuEEXJH7kuuzyG+eiwwLPDBmZ1DxxiFgsdrDcwaxkqMTTxBFF1ShfyLqscN7irFZqrHVP/sJgXltJc53WMOJYQgJJiJBRQxkVWIjSrpFiIkXnMQ//kONPkksmVxmMHAuoQoXk+MH/4PdszcLUpJsUjAHdL7b9MQL07ALNum1/H9t28wTwPwNXWttfbQCzn6TX21rkCBjYBi6u25q8B1zuAOEnXTIkR/LTEgoF4P2MvikHDN4CfWvu3FrnOH0AMjSr5Rvg4BAYLVL2use7A51z+7enNb8fY6tyobZR7ZUAAAAGYktHRACZAJkAmV5EVoEAAAAJcEhZcwAALiMAAC4jAXilP3YAAAAHdElNRQfmChAVFQLVNvuiAAAAGXRFWHRDb21tZW50AENyZWF0ZWQgd2l0aCBHSU1QV4EOFwAAACtJREFUOMtjnDlz5n8GPODs2bP4pBmYGCgEowYMBgNYCMWzsbHxaCAOfwMAB2UIU5u61XQAAAAASUVORK5CYII=`;
+
+		let newwindow = window.open(undefined, "_blank");
+		if(newwindow) {
+			newwindow.document.head.innerHTML = `<style>img {background-image: url("${checker_url}");}</style>`;
+			newwindow.document.body.innerHTML = urls.map(url => `<img src="${url}" style="transform: scaleY(-1);">`).join();
+		}
 	}
 }

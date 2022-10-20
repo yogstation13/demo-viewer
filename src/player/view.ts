@@ -12,7 +12,7 @@ const adj_dy_arr = [-1, -1, -1, 0, 0, 1, 1, 1];
 const cadj_dx_arr = [0, -1, 1, 0];
 const cadj_dy_arr = [-1, 0, 0, 1];
 
-export function view_turfs(player : DemoPlayer, origin : Turf, minx : number, miny : number, maxx : number, maxy : number, include_origin = true, see_in_dark = 1e30) : Turf[] {
+export function view_turfs(player : DemoPlayer, origin : Turf, minx : number, miny : number, maxx : number, maxy : number, include_origin = true, see_in_dark = 1e30) : Turf[] & {obscured: Turf[]} {
 	let z = origin.z;
 	let ox = origin.x;
 	let oy = origin.y;
@@ -124,7 +124,7 @@ export function view_turfs(player : DemoPlayer, origin : Turf, minx : number, mi
 		}
 	}
 
-	let output : Turf[] = [];
+	let output : Turf[] & {obscured : Turf[]} = Object.assign([], {obscured: []});
 	for(let i = 0; i < square_rings.length; i++) {
 		let ring = square_rings[i];
 		if(ring == null) continue;
@@ -154,9 +154,10 @@ export function view_turfs(player : DemoPlayer, origin : Turf, minx : number, mi
 					let e_i = xy_i(turf.x + 1, turf.y);
 					let w_i = xy_i(turf.x - 1, turf.y);
 					if(cardinal_vis_arr[n_i] && cardinal_vis_arr[s_i]) output.push(turf);
-					if(cardinal_vis_arr[w_i] && cardinal_vis_arr[e_i]) output.push(turf);
-				}
-			}
+					else if(cardinal_vis_arr[w_i] && cardinal_vis_arr[e_i]) output.push(turf);
+					else output.obscured.push(turf);
+				} else output.obscured.push(turf);
+			} else output.obscured.push(turf);
 		}
 	}
 	return output;

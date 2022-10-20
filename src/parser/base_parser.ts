@@ -1,4 +1,5 @@
 import { Appearance, BaseAppearance, ReaderAppearance } from "../misc/appearance";
+import { RevData } from "./interface";
 
 const empty_arr : [] = [];
 
@@ -9,11 +10,13 @@ export abstract class DemoParser {
 	running_size : [number,number,number] = [0,0,0];
 	running_clients : Set<string> = new Set();
 	running_client_mobs : Map<string,number> = new Map();
+	running_client_screens : Map<string, number[]> = new Map();
+	running_client_images : Map<string, Set<number>> = new Map();
 
 	duration : number = 0;
 	current_frame : ReaderDemoFramePartial;
 	frames : ReaderDemoFrame[] = [];
-	constructor(protected frame_callbacks : Array<() => void>, protected set_rev_data : (rev:string) => void) {
+	constructor(protected frame_callbacks : Array<() => void>, protected set_rev_data : (rev:RevData) => void) {
 		this.current_frame = {
 			time: 0,
 			forward: {}
@@ -82,6 +85,37 @@ export abstract class DemoParser {
 					this.running_client_mobs.set(client, mob);
 				}
 			}
+			if(frame.forward.set_mobextras) {
+				frame.backward.set_mobextras = new Map();
+				for(let [atom, extras] of frame.forward.set_mobextras) {
+					let running = this.get_running_atom(atom);
+					frame.backward.set_mobextras.set(atom, {see_invisible: running.see_invisible, sight: running.sight});
+					running.see_invisible = extras.see_invisible;
+					running.sight = extras.sight;
+				}
+			}
+			if(frame.forward.set_client_screen) {
+				frame.backward.set_client_screen = new Map();
+				for(let [client, screen] of frame.forward.set_client_screen) {
+					frame.backward.set_client_screen.set(client, this.running_client_screens.get(client) ?? []);
+					this.running_client_screens.set(client, screen);
+				}
+			}
+			if(frame.forward.set_client_images) {
+				frame.backward.set_client_images = new Map();
+				for(let [client, images] of frame.forward.set_client_images) {
+					frame.backward.set_client_images.set(client, this.running_client_images.get(client) ?? new Set());
+					this.running_client_images.set(client, images);
+				}
+			}
+			if(frame.forward.set_animation) {
+				frame.backward.set_animation = new Map();
+				for(let [atom, animation] of frame.forward.set_animation) {
+					let running = this.get_running_atom(atom);
+					frame.backward.set_animation.set(atom, running.animation);
+					running.animation = animation;
+				}
+			}
 			if(frame.forward.resize) {
 				frame.backward.resize = this.running_size;
 				this.running_size = frame.forward.resize;
@@ -111,7 +145,10 @@ export abstract class DemoParser {
 				loc: 0,
 				loc_change_time: 0,
 				last_loc: 0,
-				vis_contents: empty_arr
+				vis_contents: empty_arr,
+				animation: null,
+				sight: 0,
+				see_invisible: 0
 			};
 		}
 		return running;
@@ -132,6 +169,18 @@ export abstract class DemoParser {
 		if(!this.current_frame.forward.set_mob) this.current_frame.forward.set_mob = new Map();
 		this.current_frame.forward.set_mob.set(client, mob);
 	}
+	protected set_client_screen(client : string, screen : number[]) {
+		if(!this.current_frame.forward.set_client_screen) this.current_frame.forward.set_client_screen = new Map();
+		this.current_frame.forward.set_client_screen.set(client, screen);
+	}
+	protected set_client_images(client : string, images : Set<number>) {
+		if(!this.current_frame.forward.set_client_images) this.current_frame.forward.set_client_images = new Map();
+		this.current_frame.forward.set_client_images.set(client, images);
+	}
+	protected set_animation(atom: number, animation: ReaderDemoAnimation|null) {
+		if(!this.current_frame.forward.set_animation) this.current_frame.forward.set_animation = new Map();
+		this.current_frame.forward.set_animation.set(atom, animation);
+	}
 	protected resize(maxx:number, maxy:number, maxz:number) {
 		this.push_frame();
 		this.current_frame.forward.resize = [maxx,maxy,maxz];
@@ -144,6 +193,10 @@ export abstract class DemoParser {
 		if(vis_contents.length == 0) vis_contents = empty_arr;
 		if(!this.current_frame.forward.set_vis_contents) this.current_frame.forward.set_vis_contents = new Map();
 		this.current_frame.forward.set_vis_contents.set(atom, vis_contents);
+	}
+	protected set_mobextras(atom : number, extras : {sight:number, see_invisible:number}) {
+		if(!this.current_frame.forward.set_mobextras) this.current_frame.forward.set_mobextras = new Map();
+		this.current_frame.forward.set_mobextras.set(atom, extras);
 	}
 
 	private appearance_id_cache = new Map<string, number>();
@@ -182,6 +235,7 @@ export interface BaseDemoFramePartial<T> {
 	time: number;
 	forward: BaseDemoFrameDirection<T>;
 	chat?: DemoChatMessage[];
+	sounds? : DemoSound[];
 }
 export interface BaseDemoFrame<T> extends BaseDemoFramePartial<T> {
 	backward: BaseDemoFrameDirection<T>;
@@ -193,11 +247,34 @@ export interface BaseDemoFrameDirection<T> {
 	set_loc_change_time? : Map<number,number>;
 	set_client_status? : Map<string, boolean>;
 	set_mob? : Map<string, number>;
+	set_client_screen? : Map<string, number[]>;
+	set_client_images? : Map<string, Set<number>>;
 	set_vis_contents? : Map<number,number[]>;
+	set_mobextras? : Map<number, {sight:number, see_invisible:number}>;
+	set_animation? : Map<number, BaseDemoAnimation<T>|null>;
 	resize? : [number,number,number];
 }
+export interface BaseDemoAnimation<T> {
+	loop: number;
+	parallel: boolean;
+	end_now: boolean;
+	start_time: number;
+	end_time: number;
+	chain_end_time: number;
+	chain_parent: BaseDemoAnimation<T>|null;
+	base_appearance: T;
+	end_appearance: T;
+	frames: BaseDemoAnimationFrame<T>[];
+	duration: number;
+}
+export interface BaseDemoAnimationFrame<T> {
+	appearance: T;
+	time: number;
+	easing: number;
+	linear_transform: boolean;
+}
 export interface DemoChatMessage {
-	clients : string[];
+	clients : Array<string|undefined>;
 	message : string|{text?:string, html?:string};
 }
 
@@ -207,6 +284,9 @@ export interface RunningAtom {
 	last_loc : number;
 	loc_change_time : number;
 	vis_contents : number[];
+	animation: ReaderDemoAnimation|null;
+	sight : number;
+	see_invisible : number;
 }
 
 export interface ReaderDemoBatchData {
@@ -218,10 +298,14 @@ export interface ReaderDemoBatchData {
 export type ReaderDemoFramePartial = BaseDemoFramePartial<number>;
 export type ReaderDemoFrame = BaseDemoFrame<number>;
 export type ReaderDemoFrameDirection = BaseDemoFrameDirection<number>;
+export type ReaderDemoAnimation = BaseDemoAnimation<number>;
+export type ReaderDemoAnimationFrame = BaseDemoAnimationFrame<number>;
 
 export type DemoFramePartial = BaseDemoFramePartial<Appearance>;
 export type DemoFrame = BaseDemoFrame<Appearance>;
 export type DemoFrameDirection = BaseDemoFrameDirection<Appearance>;
+export type DemoAnimation = BaseDemoAnimation<Appearance>;
+export type DemoAnimationFrame = BaseDemoAnimationFrame<Appearance>;
 
 export type TransitionalDemoFrame = BaseDemoFrame<Appearance|number>;
 export type TransitionalDemoFrameDirection = BaseDemoFrameDirection<Appearance|number>;
@@ -230,4 +314,20 @@ export interface ResourceLoadInfo {
 	id : number;
 	path? : string;
 	blob? : Blob;
+}
+
+export interface DemoSound {
+	recipients: (string | undefined)[];
+	resources: number[];
+	repeat: number;
+	wait: boolean;
+	status: number;
+	channel: number;
+	volume: number;
+	frequency: number;
+	pan: number;
+	x: number;
+	y: number;
+	z: number;
+	falloff: number;
 }

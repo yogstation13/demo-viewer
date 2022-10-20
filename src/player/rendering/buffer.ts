@@ -1,8 +1,21 @@
 import { Appearance } from "../../misc/appearance";
 import { MAX_LAYER } from "../../misc/constants";
-import { matrix_multiply, matrix_translate } from "../../misc/matrix";
+import { Matrix, matrix_multiply, matrix_translate } from "../../misc/matrix";
 import { DmiAtlas } from "./atlas";
 import { RenderingCmd } from "./commands";
+import { IconStateDir } from "./icon";
+
+type AppearanceLike = {
+	icon_state_dir?: IconStateDir,
+	transform? : Matrix,
+	pixel_x? : number,
+	pixel_y? : number,
+	pixel_z? : number,
+	pixel_w? : number,
+	color_alpha? : number,
+	color_matrix? : Float32Array|null,
+	layer : number
+};
 
 export class DrawBuffer {
 	uses_color_matrices : boolean = false;
@@ -11,7 +24,7 @@ export class DrawBuffer {
 
 	float_attribs : Float32Array = new Float32Array(1024 * this.get_stride());
 
-	write_appearance(index : number, appearance : Appearance, step_x : number = 0, step_y : number = 0) {
+	write_appearance(index : number, appearance : AppearanceLike, step_x : number = 0, step_y : number = 0, node = appearance.icon_state_dir?.atlas_node) {
 		let stride = this.get_stride();
 		let off = index * stride;
 		let fa = this.float_attribs;
@@ -22,14 +35,13 @@ export class DrawBuffer {
 		fa[off+4] = 1;
 		fa[off+5] = 0;
 		let matrix_view = fa.subarray(off,off+6);
-		let icon_width = appearance.icon_state_dir?.atlas_node?.width ?? 32;
-		let icon_height = appearance.icon_state_dir?.atlas_node?.height ?? 32;
+		let icon_width = node?.width ?? 32;
+		let icon_height = node?.height ?? 32;
 		matrix_translate(matrix_view, -icon_width/2, -icon_height/2);
-		matrix_multiply(matrix_view, appearance.transform);
+		if(appearance.transform) matrix_multiply(matrix_view, appearance.transform);
 		matrix_translate(matrix_view, icon_width/2, icon_height/2);
-		matrix_translate(matrix_view, step_x + appearance.pixel_x + appearance.pixel_w, step_y + appearance.pixel_y + appearance.pixel_z);
-		if(appearance.icon_state_dir?.atlas_node) {
-			let node = appearance.icon_state_dir.atlas_node;
+		matrix_translate(matrix_view, step_x + (appearance?.pixel_x??0) + (appearance?.pixel_w??0), step_y + (appearance?.pixel_y??0) + (appearance?.pixel_z??0));
+		if(node) {
 			fa[off+6] = node.x;
 			fa[off+7] = node.y;
 			fa[off+8] = node.x+node.width;
@@ -41,7 +53,7 @@ export class DrawBuffer {
 			fa[off+9] = 32;
 		}
 		fa[off+10] = 1-Math.max(Math.min(appearance.layer / MAX_LAYER, 1), 0);
-		let color_alpha = appearance.color_alpha;
+		let color_alpha = appearance.color_alpha ?? -1;
 		if(this.uses_color_matrices) {
 			if(appearance.color_matrix) {
 				fa.set(appearance.color_matrix, off+11);

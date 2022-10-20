@@ -17,7 +17,7 @@ export class ChatPanel extends Panel {
 		if(typeof follow_ref == "string") this.chat_target = follow_ref;
 		this.add_transparent_toggle();
 		this.add_menu_button(b => {
-			new ChatOptionsMenu(this).put_below(b).open();
+			new ChatOptionsMenu(this).put_below(b).open(true);
 		});
 		this.set_fixed_size("min(800px, 80vw)", "min(600px, 45vh)");
 		if(in_corner) {

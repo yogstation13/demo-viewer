@@ -1,18 +1,19 @@
 import * as Comlink from "comlink";
 import { DemoPlayerUi } from "../main/ui";
 import { Appearance, TransitionalAppearance } from "../misc/appearance";
-import { DemoFrame, DemoFrameDirection, ReaderDemoFrameDirection, TransitionalDemoFrame, TransitionalDemoFrameDirection } from "../parser/base_parser";
-import { DemoParserInterface } from "../parser/interface";
+import { DemoAnimation, DemoFrame, DemoFrameDirection, ReaderDemoFrameDirection, TransitionalDemoFrame, TransitionalDemoFrameDirection } from "../parser/base_parser";
+import { DemoParserInterface, RevData } from "../parser/interface";
 import { IconLoader } from "./rendering/icon_loader";
 import { Resource } from "./resource";
-import { DmiAtlas } from "./rendering/atlas";
+import { AtlasNode, DmiAtlas } from "./rendering/atlas";
 import { IconState, IconStateDir } from "./rendering/icon";
 import { CmdViewport, FollowDesc, RenderingCmd } from "./rendering/commands";
 import { DrawBuffer } from "./rendering/buffer";
-import { LONG_GLIDE, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM } from "../misc/constants";
+import { LONG_GLIDE, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM, SEE_MOBS, SEE_OBJS, SEE_THRU, SEE_TURFS } from "../misc/constants";
 import { matrix_is_identity, matrix_multiply } from "../misc/matrix";
 import { despam_promise } from "../misc/promise_despammer";
 import { view_turfs } from "./view";
+import { animate_appearance, appearance_interpolate } from "./rendering/animation";
 
 const empty_arr : [] = [];
 
@@ -30,11 +31,15 @@ export class DemoPlayer {
 
 	clients : Set<string> = new Set();
 	client_mobs : Map<string, Atom> = new Map(); 
+	client_screens : Map<string, Atom[]> = new Map();
+	client_images : Map<string, Set<number>> = new Map();
+
+	current_images : Set<number>|undefined = undefined;
 
 	ui : Comlink.Remote<DemoPlayerUi>|undefined;
 
 	resources : Array<Resource|undefined> = [];
-	rev_data : string|undefined;
+	rev_data : RevData|undefined;
 	chat_css : Promise<string>;
 	icon_loader : IconLoader;
 
@@ -84,10 +89,10 @@ export class DemoPlayer {
 					res.path = res_load.path;
 					if(!res.data) {
 						let paintings_pattern = "data/paintings/public/";
-						if(res_load.path.startsWith(paintings_pattern)) {
+						if(res_load.path.startsWith(paintings_pattern) && this.rev_data?.repo == "yogstation13/Yogstation") {
 							res.load_url = "https://cdn.yogstation.net/paintings/" + res_load.path.substring(paintings_pattern.length);
 						} else {
-							res.load_url = "https://cdn.jsdelivr.net/gh/yogstation13/yogstation@" + (this.rev_data || "master") + "/" + res_load.path;
+							res.load_url = `https://cdn.jsdelivr.net/gh/${this.rev_data?.repo || "yogstation13/Yogstation"}@${(this.rev_data?.commit || "master")}/${res_load.path}`;
 						}
 					}
 				}
@@ -107,6 +112,18 @@ export class DemoPlayer {
 				}
 			}
 		}
+		if(dir.set_animation) {
+			for(let anim of dir.set_animation.values()) {
+				while(anim && typeof anim.base_appearance == "number") {
+					if(typeof anim.base_appearance == "number") anim.base_appearance = this.appearance_cache[anim.base_appearance];
+					if(typeof anim.end_appearance == "number") anim.end_appearance = this.appearance_cache[anim.end_appearance];
+					for(let frame of anim.frames) {
+						if(typeof frame.appearance == "number") frame.appearance = this.appearance_cache[frame.appearance];
+					}
+					anim = anim.chain_parent;
+				}
+			}
+		}
 	}
 
 	adjust_z(adj : number) {
@@ -116,21 +133,31 @@ export class DemoPlayer {
 		this.ui?.update_hash(this.z_level);
 	}
 
+	follow_ckey : string|undefined;
 	last_state_str = "";
 	last_objects : Renderable[] = [];
 	current_turfs = new Set<Turf>();
+	current_obscured_turfs = new Set<Turf>();
 	run_frame(dt : number, playback_speed : number, turf_window:{left:number,right:number,top:number,bottom:number,pixel_scale:number,follow?:FollowDesc}, canvas_draw_list : {ref:number, width:number, height:number}[]) : RenderingCmd[] {
+		this.follow_ckey = typeof turf_window.follow?.ref == "string" ? turf_window.follow.ref : undefined;
 		if(playback_speed != 0)
-			this.advance_time_relative(dt / 100 * playback_speed);
+			this.advance_time_relative(dt / 100 * playback_speed, playback_speed > 0);
 
+		this.current_images = undefined;
 		let view_origin : Turf|undefined;
-		let view_dist = 0;
+		let view_mob : Mob|undefined;
+		let view_dist_x = 0;
+		let view_dist_y = 0;
 		let follow_data : {ref:number|string,x:number,y:number}|undefined;
 		let followview_window : {x:number,y:number,width:number,height:number}|undefined;
 		if(turf_window.follow) {
 			let iterated_set = new Set()
 			let ref = turf_window.follow.ref;
 			let atom = typeof ref == "string" ? this.client_mobs.get(ref) : (ref ? this.get_atom(ref) : null);
+			if(typeof ref == "string") {
+				this.current_images = this.client_images.get(ref);
+			}
+			if(typeof ref == "string" && atom instanceof Mob) view_mob = atom;
 			while(atom && !(atom.loc instanceof Turf)) {
 				if(iterated_set.has(atom)) atom = null;
 				else {
@@ -140,8 +167,12 @@ export class DemoPlayer {
 			}
 			if(atom && atom.loc instanceof Turf) {
 				let [x,y] = atom.get_offset(this);
-				if(atom.appearance) {
-					let bounds = Appearance.get_display_boundary(atom.appearance);
+				let appearance = atom.get_appearance(this);
+				if(appearance && typeof ref != "string") {
+					for(let part of Appearance.get_appearance_parts(appearance)) {
+						if(!part.icon_state_dir) part.icon_state_dir = this.get_appearance_dir(part);
+					}
+					let bounds = Appearance.get_display_boundary(appearance);
 					x += bounds.x + bounds.width/2;
 					y += bounds.y + bounds.height/2;
 				} else {
@@ -149,8 +180,9 @@ export class DemoPlayer {
 					y += 16;
 				}
 
-				if((atom.ref >> 24) == 3) {
-					view_dist = 7.5;
+				if(typeof ref == "string") {
+					view_dist_x = 9.5;
+					view_dist_y = 7.5;
 					view_origin = atom.loc;
 				}
 
@@ -167,12 +199,12 @@ export class DemoPlayer {
 			turf_window.bottom += dy;
 			turf_window.top += dy;
 
-			if(view_dist) {
+			if(view_dist_x && view_dist_y) {
 				followview_window = {
-					x: follow_data.x-view_dist,
-					y: follow_data.y-view_dist,
-					width: view_dist*2,
-					height: view_dist*2
+					x: follow_data.x-view_dist_x,
+					y: follow_data.y-view_dist_y,
+					width: view_dist_x*2,
+					height: view_dist_y*2
 				};
 			}
 		}
@@ -211,8 +243,9 @@ export class DemoPlayer {
 		this.last_state_str = state_str;
 		this.use_index++;
 
-		if(view_origin) {
-			let turfs = new Set(view_turfs(this, view_origin, q_turf_window.left, q_turf_window.bottom, q_turf_window.right, q_turf_window.top, true));
+		if(view_origin && !(view_mob && (view_mob.sight & SEE_THRU))) {
+			let view = view_turfs(this, view_origin, q_turf_window.left, q_turf_window.bottom, q_turf_window.right, q_turf_window.top, true);
+			let turfs = new Set(view);
 			for(let turf of this.current_turfs) {
 				if(!turfs.has(turf)) {
 					this.current_turfs.delete(turf);
@@ -221,6 +254,7 @@ export class DemoPlayer {
 			for(let turf of turfs) {
 				this.current_turfs.add(turf);
 			}
+			this.current_obscured_turfs = new Set(view.obscured);
 		} else {
 			for(let turf of this.current_turfs) {
 				if(turf.z != this.z_level || turf.x < q_turf_window.left || turf.y < q_turf_window.bottom || turf.x >= q_turf_window.right || turf.y >= q_turf_window.top) {
@@ -232,6 +266,7 @@ export class DemoPlayer {
 				if(!turf) continue;
 				this.current_turfs.add(turf);
 			}
+			this.current_obscured_turfs.clear();
 		}
 
 		let drawing_commands : RenderingCmd[] = [];
@@ -250,8 +285,34 @@ export class DemoPlayer {
 				objects.push(turf);
 			}
 			for(let thing of turf.contents) {
-				if(turf.appearance) {
+				if(thing.appearance) {
 					objects.push(thing);
+				}
+			}
+		}
+		if(view_mob && (view_mob.sight & (SEE_MOBS|SEE_OBJS|SEE_TURFS))) {
+			let see_mobs = view_mob.sight & SEE_MOBS;
+			let see_objs = view_mob.sight & SEE_OBJS;
+			let see_turfs = view_mob.sight & SEE_TURFS;
+			for(let turf of this.current_obscured_turfs) {
+				if(turf.appearance && see_turfs) {
+					objects.push(turf);
+				}
+				for(let thing of turf.contents) {
+					if(!thing.appearance) continue;
+					if((thing instanceof Mob)) {
+						if(see_mobs) objects.push(thing);
+					} else if(see_objs) objects.push(thing);
+				}
+			}
+		}
+		if(typeof follow_data?.ref == "string") {
+			let screen = this.client_screens.get(follow_data.ref);
+			if(screen) for(let thing of screen) {
+				if(thing.appearance && thing.appearance.screen_loc) {
+					objects.push(...Appearance.parse_screen_loc(thing.appearance.screen_loc, followview_window?.width, followview_window?.height).map(([x,y]) => {
+						return new ScreenProxy(thing, x*32, y*32);
+					}));
 				}
 			}
 		}
@@ -269,7 +330,7 @@ export class DemoPlayer {
 				height: d_turf_window.top - d_turf_window.bottom
 			}
 		});
-		this.draw_object_list(drawing_commands, objects);
+		this.draw_object_list(drawing_commands, objects, undefined, followview_window);
 		drawing_commands.push({cmd: "copytoviewport", follow_data, followview_window});
 		this.last_objects = objects;
 
@@ -283,7 +344,13 @@ export class DemoPlayer {
 			let atom = this.get_atom(draw_item.ref);
 			let atom_offset = atom.get_offset(this);
 			//let atom_bounds = {x:atom_offset[0], y:atom_offset[1], width:32, height:32};
-			let atom_bounds = atom.appearance ? Appearance.get_display_boundary(atom.appearance) : {x:0,y:0,width:32,height:32};
+			let appearance = atom.get_appearance(this);
+			if(appearance) {
+				for(let part of Appearance.get_appearance_parts(appearance)) {
+					if(!part.icon_state_dir) part.icon_state_dir = this.get_appearance_dir(part);
+				}
+			}
+			let atom_bounds = appearance ? Appearance.get_display_boundary(appearance) : {x:0,y:0,width:32,height:32};
 			atom_bounds.x += atom_offset[0];
 			atom_bounds.y += atom_offset[1];
 			atom_bounds.width = Math.max(1, atom_bounds.width);
@@ -349,12 +416,13 @@ export class DemoPlayer {
 		}
 		commands.push(...drawing_commands);
 		let transferables : Transferable[] = [];
+		this.cleanup_maptext();
 		for(let command of commands) if(command.transferables) transferables.push(...command.transferables);
 		return Comlink.transfer(commands, transferables);
 	}
 	
 	draw_buffer = new DrawBuffer();
-	draw_object_list(commands : RenderingCmd[], objects : Renderable[], see_invisible = 60) {
+	draw_object_list(commands : RenderingCmd[], objects : Renderable[], see_invisible = 60, followview_window? : {x:number,y:number,width:number,height:number}|undefined) {
 		let buffer = this.draw_buffer;
 		let buffer_index = 0;
 		objects.sort((a, b) => {
@@ -370,6 +438,11 @@ export class DemoPlayer {
 
 		for(let thing of objects) {
 			let [x,y] = thing.get_offset(this);
+			if(thing.is_screen_obj()) {
+				if(!followview_window) continue;
+				x += followview_window.x*32;
+				y += followview_window.y*32;
+			}
 			let root_appearance = thing.get_appearance(this);
 			if(!root_appearance || root_appearance.invisibility > see_invisible) continue;
 			for(let appearance of Appearance.get_appearance_parts(root_appearance)) {
@@ -392,6 +465,30 @@ export class DemoPlayer {
 					appearance.icon_state_dir.atlas_node.use_index = this.use_index;
 					if(buffer_index >= buffer.get_size()) buffer.expand();
 					buffer.write_appearance(buffer_index++, appearance, x, y);
+				}
+				if(appearance.maptext && appearance.maptext.maptext) {
+					let node = this.get_maptext(appearance.maptext);
+					if(buffer.atlas != node.atlas || (buffer.blend_mode || 1) != (appearance.blend_mode || 1) || buffer.uses_color_matrices != !!appearance.color_matrix) {
+						if(buffer_index) {
+							buffer.add_draw(commands, 0, buffer_index);
+							buffer_index = 0;
+						}
+						buffer.atlas = node.atlas as DmiAtlas;
+						buffer.blend_mode = appearance.blend_mode || 1;
+						buffer.uses_color_matrices = !!appearance.color_matrix;
+					}
+					node.use_index = this.use_index;
+					if(buffer_index >= buffer.get_size()) buffer.expand();
+					buffer.write_appearance(buffer_index++, {
+						layer: appearance.layer,
+						color_alpha: appearance.color_alpha,
+						color_matrix: appearance.color_matrix,
+						pixel_w: appearance.pixel_w,
+						pixel_x: appearance.pixel_x,
+						pixel_y: appearance.pixel_y,
+						pixel_z: appearance.pixel_z,
+						transform: matrix_multiply([1,0,appearance.maptext.x,0,1,appearance.maptext.y], appearance.transform)
+					}, x, y, node);
 				}
 			}
 		}
@@ -421,7 +518,12 @@ export class DemoPlayer {
 
 		if(!icon_state.atlas) this.allocate_icon_state(icon_state, preferred_atlas);
 
-		let dir_index = [0,1,0,0,2,6,4,2,3,7,5,3,2,1,0,0][appearance.dir] ?? 0;
+		let eff_dir = appearance.dir;
+		if(icon_state.dirs.length <= 4) {
+			if(eff_dir == 5 || eff_dir == 6) eff_dir = 4;
+			if(eff_dir == 9 || eff_dir == 10) eff_dir = 8;
+		}
+		let dir_index = [0,1,0,0,2,6,4,2,3,7,5,3,2,1,0,0][eff_dir] ?? 0;
 		let dir = icon_state.dirs[dir_index & (icon_state.dirs.length-1)];
 		return dir;
 	}
@@ -444,6 +546,52 @@ export class DemoPlayer {
 		}
 	}
 
+	allocate_surface(width : number, height : number, preferred_atlas? : DmiAtlas) {
+		if(preferred_atlas) {
+			let node = preferred_atlas.alloc(width, height);
+			if(node) return node;
+		}
+		for(let atlas of this.icon_atlases) {
+			if(atlas != preferred_atlas) {
+				let node = atlas.alloc(width, height);
+				if(node) return node;
+			}
+		}
+		console.log("Creating new atlas #" + this.icon_atlases.length);
+		let atlas = new DmiAtlas(8, 12, this.icon_atlases.length);
+		this.icon_atlases.push(atlas);
+		let node = atlas.alloc(width, height);
+		if(node) {
+			return node;
+		} else {
+			this.icon_atlases.pop();
+			throw new Error("FAILED TO ALLOCATE SURFACE (" + width + ", " + height + ") ATLAS SIZE: " + atlas.size_index);
+		}
+	}
+
+	maptext_nodes = new Map<string, AtlasNode>();
+	used_maptext_nodes = new Set<AtlasNode>();
+	get_maptext(maptext : {maptext: string, width: number, height: number}, preferred_atlas? : DmiAtlas) {
+		let str = `${maptext.width}x${maptext.height} ${maptext.maptext}`;
+		let node = this.maptext_nodes.get(str);
+		if(!node) {
+			node = this.allocate_surface(maptext.width, maptext.height, preferred_atlas);
+			let atlas = <DmiAtlas>node.atlas;
+			atlas.add_maptext(maptext.maptext, node);
+			this.maptext_nodes.set(str, node);
+		}
+		this.used_maptext_nodes.add(node);
+		return node;
+	}
+	cleanup_maptext() {
+		for(let [str, node] of this.maptext_nodes) {
+			if(this.used_maptext_nodes.has(node)) continue;
+			node.free();
+			this.maptext_nodes.delete(str);
+		}
+		this.used_maptext_nodes.clear();
+	}
+
 	get_demo_duration() {
 		return this.frames.length ? this.frames[this.frames.length-1].time : 0;
 	}
@@ -454,16 +602,16 @@ export class DemoPlayer {
 		this.ui.update_duration(this.get_demo_duration());
 	}
 
-	advance_time_relative(dt : number) {
+	advance_time_relative(dt : number, realtime = false) {
 		let time = this.time;
 		let demo_duration = this.get_demo_duration();
 		if(dt < 0) time = Math.min(time+dt, demo_duration);
 		else if(dt > 0 && time >= demo_duration) return;
 		else time = Math.max(Math.min(time+dt, demo_duration), time);
-		this.advance_time(time);
+		this.advance_time(time, realtime);
 	}
 
-	advance_time(new_time : number = this.time) {
+	advance_time(new_time : number = this.time, realtime = false) {
 		if(new_time < 0) new_time = 0;
 		let last_frame_index = this.frame_index;
 		if(new_time < this.time) {
@@ -475,7 +623,7 @@ export class DemoPlayer {
 		} else {
 			while(this.frames[this.frame_index+1] && new_time >= this.frames[this.frame_index+1].time) {
 				this.frame_index++;
-				this.apply_frame(this.frames[this.frame_index]);
+				this.apply_frame(this.frames[this.frame_index], realtime);
 				this.time = this.frames[this.frame_index].time;
 				if(this.frames[this.frame_index].time <= 0) {
 					// Since time can't go below zero, this frame will never be unapplied, and therefore will never be re-applied again
@@ -495,8 +643,12 @@ export class DemoPlayer {
 
 	}
 
-	private apply_frame(frame : DemoFrame) {
+	private apply_frame(frame : DemoFrame, realtime : boolean = false) {
 		this.apply_frame_direction(frame, frame.forward, true);
+		if(realtime && this.ui && frame.sounds) {
+			let sounds = frame.sounds.filter(s => (s.recipients.includes("world") || s.recipients.includes(this.follow_ckey)));
+			if(sounds.length) this.ui.handle_sounds(sounds);
+		}
 		this.change_counter++;
 	}
 	private undo_frame(frame : DemoFrame) {
@@ -554,6 +706,21 @@ export class DemoPlayer {
 				atom.vis_contents = vis_contents.length ? vis_contents.filter(Boolean).map(a => this.get_atom(a)) : empty_arr;
 			}
 		}
+		if(dir.set_mobextras) {
+			for(let [ref, extras] of dir.set_mobextras) {
+				let atom = this.get_atom(ref);
+				if(atom instanceof Mob) {
+					atom.sight = extras.sight;
+					atom.see_invisible = extras.see_invisible;
+				}
+			}
+		}
+		if(dir.set_animation) {
+			for(let [ref, animation] of dir.set_animation) {
+				let atom = this.get_atom(ref);
+				atom.animation = animation;
+			}
+		}
 		if(dir.set_client_status) {
 			for(let [client, logged_in] of dir.set_client_status) {
 				if(logged_in) this.clients.add(client);
@@ -572,9 +739,25 @@ export class DemoPlayer {
 				this.trigger_inspect_listeners(prev_mob);
 			}
 		}
+		if(dir.set_client_screen) {
+			for(let [client, screen] of dir.set_client_screen) {
+				let atoms = this.client_screens.get(client);
+				if(!atoms) {
+					atoms = [];
+					this.client_screens.set(client, atoms);
+				}
+				atoms.length = 0;
+				for(let item of screen) if(item) atoms.push(this.get_atom(item));
+			}
+		}
+		if(dir.set_client_images) {
+			for(let [client, images] of dir.set_client_images) {
+				this.client_images.set(client, images);
+			}
+		}
 	}
 
-	get_chat_messages(target : string = "world", start : number = 0, end : number = this.frames.length) {
+	get_chat_messages(target : string|undefined, start : number = 0, end : number = this.frames.length) {
 		start = Math.max(0, start);
 		end = Math.min(end, this.frames.length);
 		let messages : {message: string|{text?:string,html?:string}, frame_index: number, time: number}[] = [];
@@ -724,8 +907,12 @@ export class DemoPlayer {
 				let z = Math.floor(d / this.maxy) + 1;
 				atom = new Turf(ref, x, y, z);
 
-			} else if(type == 3 || type == 2) {
+			} else if(type == 3) {
+				atom = new Mob(ref);
+			} else if(type == 2) {
 				atom = new Obj(ref);
+			} else if(type == 0xD) {
+				atom = new ImageOverlay(ref);
 			} else atom = new Atom(ref);
 			list[index] = atom;
 		}
@@ -749,33 +936,42 @@ export class DemoPlayer {
 		}
 		return res;
 	}
+
+	get_resource_blob(id : number) : Promise<Blob> {
+		return this.get_resource(id).blob_promise();
+	}
 }
 
 export abstract class Renderable {
-	abstract get_appearance(player:DemoPlayer) : Appearance|null;
+	abstract get_appearance(player:DemoPlayer, see_invisible? : number) : Appearance|null;
 	get_offset(player:DemoPlayer) : [number,number] {return [0,0];}
 	get_click_target() : Atom|null {return null;};
+	is_screen_obj() : boolean {return false;}
 }
 
 export class Atom extends Renderable {
 	appearance: Appearance|null = null;
+	animation : DemoAnimation|null = null;
 	private _loc: Atom|null = null;
 	contents: Atom[] = [];
+	image_objects: ImageOverlay[] = [];
 	vis_contents: Atom[] = empty_arr;
+	anim_appearance : Appearance&{animate_time: number}|null = null;
 	combined_appearance : (Appearance & {vis_contents_appearances : Appearance[]})|null = null;
 	constructor(public ref: number) {super()}
 	set loc(val : Atom|null) {
 		if(val == this._loc) return;
 		if(this._loc) {
-			let index = this._loc.contents.indexOf(this);
-			if(index >= 0) this._loc.contents.splice(index, 1);
+			let index = this._get_loc_contents(this._loc).indexOf(this);
+			if(index >= 0) this._get_loc_contents(this._loc).splice(index, 1);
 		}
 		this._loc = val;
 		if(val) {
-			val.contents.push(this);
+			this._get_loc_contents(val).push(this);
 		}
 	}
 	get loc() {return this._loc;}
+	protected _get_loc_contents(atom : Atom) : Atom[] {return atom.contents;}
 
 	get_offset(player:DemoPlayer) : [number,number]  {
 		if(this._loc instanceof Turf) {
@@ -786,27 +982,48 @@ export class Atom extends Renderable {
 
 	get_click_target() : Atom|null {return this;}
 
-	get_appearance(player: DemoPlayer, vis_contents_depth = 100): Appearance | null {
+	get_appearance(player: DemoPlayer, see_invisible = 101, vis_contents_depth = 100): Appearance | null {
 		if(vis_contents_depth <= 0) {
-			console.warn(`Deep (possibly looping) vis_contents detected at [0x${this.ref.toString(16)}]. Pruning.`);
+			console.warn(`Deep (possibly looping) vis_contents/images detected at [0x${this.ref.toString(16)}]. Pruning.`);
 			this.vis_contents = empty_arr;
 		}
 		if(!this.appearance) {
 			this.combined_appearance = null;
 			return null;
 		}
-		if(this.vis_contents.length) {
+		let base_appearance = this.appearance;
+		if(this.animation && player.time >= this.animation.start_time && player.time < this.animation.chain_end_time) {
+			if(this.anim_appearance && this.anim_appearance.animate_time == player.time && this.anim_appearance.derived_from == base_appearance) {
+				base_appearance = this.anim_appearance;
+			} else {
+				this.anim_appearance = base_appearance = animate_appearance(this.animation, base_appearance, player.time);
+			}
+		} else {
+			this.anim_appearance = null;
+		}
+		if(this.vis_contents.length || this.image_objects.length) {
 			let vis_contents_appearances : Appearance[] = [];
-			for(let thing of this.vis_contents) {
-				let appearance = thing.get_appearance(player, vis_contents_depth - 1);
-				if(appearance) vis_contents_appearances.push(appearance);
+			let overridden = false;
+			for(let thing of this.image_objects) {
+				if(!(player.current_images?.has(thing.ref))) continue;
+				let appearance = thing.get_appearance(player, vis_contents_depth-1, see_invisible);
+				if(appearance) {
+					if(appearance.override) overridden = true;
+					vis_contents_appearances.push(appearance);
+				}
+			}
+			if(base_appearance.invisibility <= see_invisible) {
+				for(let thing of this.vis_contents) {
+					let appearance = thing.get_appearance(player, vis_contents_depth - 1);
+					if(appearance && appearance.invisibility <= see_invisible) vis_contents_appearances.push(appearance);
+				}
 			}
 			if(!vis_contents_appearances.length) {
 				this.combined_appearance = null;
-				return this.appearance;
+				return base_appearance;
 			}
 			let matches = true;
-			if(!this.combined_appearance || this.combined_appearance.derived_from != this.appearance || vis_contents_appearances.length != this.combined_appearance.vis_contents_appearances.length) {
+			if(!this.combined_appearance || this.combined_appearance.derived_from != base_appearance || vis_contents_appearances.length != this.combined_appearance.vis_contents_appearances.length) {
 				matches = false;
 			} else {
 				for(let i = 0; i < vis_contents_appearances.length; i++) {
@@ -818,16 +1035,26 @@ export class Atom extends Renderable {
 			}
 			if(!matches || !this.combined_appearance) {
 				this.combined_appearance = {
-					...this.appearance,
-					overlays: [...this.appearance.overlays, ...vis_contents_appearances],
-					derived_from: this.appearance,
+					...base_appearance,
+					overlays: [...base_appearance.overlays, ...vis_contents_appearances],
+					derived_from: base_appearance,
 					vis_contents_appearances
 				}
+				if(base_appearance.invisibility > see_invisible || overridden) {
+					this.combined_appearance.invisibility = 0;
+					this.combined_appearance.overlays = vis_contents_appearances;
+					this.combined_appearance.underlays = empty_arr;
+					this.combined_appearance.icon = null;
+					this.combined_appearance.icon_state = "";
+					this.combined_appearance.icon_state_dir = undefined;
+				}
+				if(this.combined_appearance.floating_appearances) this.combined_appearance.floating_appearances = undefined;
+				if(this.combined_appearance.sorted_appearances) this.combined_appearance.sorted_appearances = undefined;
 			}
 			return this.combined_appearance;
 		} else {
 			this.combined_appearance = null;
-			return this.appearance;
+			return base_appearance;
 		}
 	}
 }
@@ -864,6 +1091,15 @@ export class Obj extends Atom {
 	}
 }
 
+export class Mob extends Obj {
+	sight = 0;
+	see_invisible = 0;
+}
+
+export class ImageOverlay extends Atom {
+	protected _get_loc_contents(atom : Atom) : Atom[] {atom.combined_appearance = null; return atom.image_objects;}
+}
+
 export class OverlayProxy extends Renderable {
 	constructor(public parent: Renderable) {super();}
 	appearance: Appearance|null = null;
@@ -871,8 +1107,49 @@ export class OverlayProxy extends Renderable {
 	get_offset(player:DemoPlayer) : [number,number]  {
 		return this.parent.get_offset(player);
 	}
-	get_appearance(player: DemoPlayer): Appearance | null {
+	get_appearance(player: DemoPlayer, see_invisible = 101): Appearance | null {
 		return this.appearance;
+	}
+	is_screen_obj(): boolean {
+		return this.parent.is_screen_obj();
+	}
+}
+
+export class ScreenProxy extends Renderable {
+	constructor(public parent: Renderable, public screen_x : number, public screen_y : number) {super();}
+	get_offset(player:DemoPlayer) : [number,number] {
+		return [this.screen_x, this.screen_y];
+	}
+	appearance : Appearance|null = null;
+	get_appearance(player: DemoPlayer, see_invisible? : number): Appearance | null {
+		let base_appearance = this.parent.get_appearance(player, see_invisible);
+		if(!base_appearance || (
+			base_appearance.pixel_x == 0
+			&&base_appearance.pixel_y == 0
+			&&base_appearance.pixel_w == 0
+			&&base_appearance.pixel_z == 0
+		)) {
+			this.appearance = null;
+			return base_appearance;
+		}
+		if(base_appearance == this.appearance?.derived_from) {
+			return this.appearance;
+		}
+		let appearance : Appearance = {
+			...base_appearance,
+			derived_from: base_appearance
+		};
+		if(appearance.sorted_appearances) appearance.sorted_appearances = undefined;
+		if(appearance.floating_appearances) appearance.floating_appearances = undefined;
+		appearance.pixel_x = 0;
+		appearance.pixel_y = 0;
+		appearance.pixel_z = 0;
+		appearance.pixel_w = 0;
+		this.appearance = appearance;
+		return appearance;
+	}
+	is_screen_obj(): boolean {
+		return true;
 	}
 }
 

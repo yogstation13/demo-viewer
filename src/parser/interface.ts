@@ -25,7 +25,7 @@ export class DemoParserInterface {
 		return this._parser.frames.length;
 	}
 
-	public rev_data = create_exposed_promise<string>();
+	public rev_data = create_exposed_promise<RevData>();
 	public chat_css = this.rev_data.then(async commit => {
 		let css_paths : (string|string[])[] = [
 			"tgui/packages/tgui-panel/styles/goon/chat-dark.scss",
@@ -37,7 +37,7 @@ export class DemoParserInterface {
 				chat_css = "";
 				if(!(path_list instanceof Array)) path_list = [path_list];
 				for(let path of path_list) {
-					let res = await fetch("https://cdn.jsdelivr.net/gh/Yogstation13/yogstation@" + commit + "/" + path);
+					let res = await fetch(`https://cdn.jsdelivr.net/gh/${commit.repo}@${commit.commit}/${path}`);
 					if(res.ok) {
 						chat_css += await res.text();
 					} else {
@@ -82,4 +82,7 @@ export class DemoParserInterface {
 	}
 }
 
-
+export interface RevData {
+	commit?: string,
+	repo?: string
+};

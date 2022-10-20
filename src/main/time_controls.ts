@@ -65,6 +65,7 @@ export class DemoPlayerTimeControls {
 
 	play_clicked = () => {
 		this.playback_speed = this.playback_speed ? 0 : 1;
+		if(this.playback_speed) this.ui.sound_player.ctx.resume();
 		this.ui.update_hash();
 		this.update_play_button();
 	}
@@ -100,6 +101,7 @@ export class DemoPlayerTimeControls {
 			} else {
 				this.playback_speed = (this.playback_speed == 0) ? 1 : 0;
 			}
+			if(this.playback_speed) this.ui.sound_player.ctx.resume();
 			this.update_play_button();
 			e.preventDefault();
 			this.ui.update_hash();

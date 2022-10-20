@@ -65,7 +65,7 @@ export class DemoParserText extends DemoParser {
 
 		if(command == "commit") {
 			console.log("Commit " + content);
-			this.set_rev_data(content);
+			this.set_rev_data({commit: content, repo: "yogstation13/Yogstation"});
 		} else if(command == "init") {
 			[this.maxx,this.maxy,this.maxz] = content.split(" ").map(s=>parseInt(s));
 			this.resize(this.maxx,this.maxy,this.maxz);

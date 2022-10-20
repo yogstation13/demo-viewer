@@ -1,4 +1,4 @@
-import { AtlasTexCopyWithin, AtlasTexData, RenderingCmd, ResizeAtlas } from "./commands";
+import { AtlasTexCopyWithin, AtlasTexData, AtlasTexMaptext, RenderingCmd, ResizeAtlas } from "./commands";
 import { FrameData, get_dir_anim_frame, IconState, IconStateDir, SpriteHash } from "./icon";
 
 // Uses a quad-tree. Quad-trees work very well if allocating sprites of a power of two, which most sprites in SS13 are with the exception of 480x480 fullscreen ones. I guess those will have wasted pixels.
@@ -39,6 +39,7 @@ export class DmiAtlas extends Atlas {
 	expand_command : ResizeAtlas|undefined;
 	copy_within_command : AtlasTexCopyWithin|undefined;
 	tex_data_command : AtlasTexData|undefined;
+	tex_maptext_command : AtlasTexMaptext|undefined;
 
 	constructor(size_index : number, size_limit : number, tex_index : number) {
 		super(size_index);
@@ -170,6 +171,23 @@ export class DmiAtlas extends Atlas {
 		return true;
 	}
 
+	add_maptext(maptext_string : string, node : AtlasNode) {
+		if(!this.tex_maptext_command) {
+			this.tex_maptext_command = {
+				cmd: "atlastexmaptext",
+				index: this.tex_index,
+				parts: []
+			};
+		}
+		this.tex_maptext_command.parts.push({
+			maptext: maptext_string,
+			x: node.x,
+			y: node.y,
+			width: node.width,
+			height: node.height
+		});
+	}
+
 	add_icon_commands(icon_commands: RenderingCmd[]) : void {
 		if(this.expand_command) {
 			icon_commands.push(this.expand_command);
@@ -195,6 +213,10 @@ export class DmiAtlas extends Atlas {
 		if(this.copy_within_command) {
 			icon_commands.push(this.copy_within_command);
 			this.copy_within_command = undefined;
+		}
+		if(this.tex_maptext_command) {
+			icon_commands.push(this.tex_maptext_command);
+			this.tex_maptext_command = undefined;
 		}
 	}
 }
@@ -283,8 +305,8 @@ export class AtlasNode {
 					}
 				}
 				if(can_unwind) {
-					this.children = undefined;
-					this.update_largest_avail();
+					parent.children = undefined;
+					parent.update_largest_avail();
 					parent.unwind();
 				}
 			}
@@ -303,6 +325,11 @@ export class AtlasNode {
 			this.largest_avail = -1;
 		} else {
 			this.largest_avail = this.size_index;
+		}
+		let parent = this.parent;
+		while(parent) {
+			parent.largest_avail = Math.max(parent.largest_avail, this.largest_avail);
+			parent = parent.parent;
 		}
 	}
 }

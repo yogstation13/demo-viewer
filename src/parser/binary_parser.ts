@@ -1,6 +1,8 @@
-import { ReaderAppearance } from "../misc/appearance";
+import { Filter, FilterType, ReaderAppearance } from "../misc/appearance";
+import { SOUND_MUTE, SOUND_PAUSED, SOUND_STREAM, SOUND_UPDATE } from "../misc/constants";
 import { Matrix } from "../misc/matrix";
-import { DemoParser } from "./base_parser";
+import { DemoParser, ReaderDemoAnimation, ReaderDemoAnimationFrame } from "./base_parser";
+import { RevData } from "./interface";
 
 const MIN_VERSION = 0;
 const MAX_VERSION = 0;
@@ -38,7 +40,11 @@ export class DemoParserBinary extends DemoParser {
 			while(this.read_buffer_end > commit_hash_end && this.read_buffer[commit_hash_end] != 0) commit_hash_end++;
 			if(commit_hash_end+4 >= this.read_buffer_end) return;
 			let commit_info = text_decoder.decode(this.read_buffer.subarray(3, commit_hash_end));
-			this.set_rev_data(commit_info);
+			if(commit_info[0] == '{') {
+				this.set_rev_data(JSON.parse(commit_info) as RevData);
+			} else {
+				this.set_rev_data({commit: commit_info, repo: 'yogstation13/Yogstation'});
+			}
 
 			this.load_end = this.read_buffer[commit_hash_end+1] + (this.read_buffer[commit_hash_end+2]<<8) + (this.read_buffer[commit_hash_end+3]<<16) + (this.read_buffer[commit_hash_end+4]<<24);
 
@@ -49,7 +55,7 @@ export class DemoParserBinary extends DemoParser {
 
 		while(chunk_start < this.read_buffer_end) {
 			let chunk_type = this.read_buffer[chunk_start];
-			let chunk_data_start = 1;
+			let chunk_data_start = chunk_start+2;
 			let chunk_length = 0;
 			for(let i = chunk_start+1; i < this.read_buffer_end; i++) {
 				chunk_data_start = i+1;
@@ -94,14 +100,27 @@ export class DemoParserBinary extends DemoParser {
 			case 0x2:
 			case 0x3:
 			case 0x4:
+			case 0x5:
 				this.handle_atom_data(p, type);
 				if(this.load_end) return true;
+				break;
+			case 0x7:
+				this.handle_animate(p);
+				break;
+			case 0x8:
+				this.handle_chat(p);
+				break;
+			case 0x9:
+				this.handle_client(p);
 				break;
 			case 0xA:
 				this.resource_loads.push({
 					id: p.read_uint32(),
 					blob: new Blob([p.data.subarray(p.i)])
 				});
+				break;
+			case 0xB:
+				this.handle_sound(p);
 				break;
 			default:
 				console.warn(`Unknown chunk 0x${type.toString(16)}, length ${data.length} at 0x${this.file_index.toString(16)}`)
@@ -121,6 +140,189 @@ export class DemoParserBinary extends DemoParser {
 		return ref;
 	}
 
+	handle_sound(p : DataPointer) : void {
+		let recipient_flags = p.read_uint8();
+		let recipients : Array<undefined|string> = [];
+		if(recipient_flags & 4) recipients.push(undefined);
+		if(recipient_flags & 2) recipients.push('world');
+		if(recipient_flags & 1) {
+			let num_clients = p.read_vlq();
+			for(let i = 0; i < num_clients; i++) {
+				let ckey = this.client_id_to_ckey[p.read_uint16()];
+				if(ckey) recipients.push(ckey);
+			}
+		}
+
+		let resources : number[] = [];
+		let num_resources = p.read_vlq();
+		for(let i = 0; i < num_resources; i++) {
+			let resource = this.parse_resource_id(p);
+			if(resource) resources.push(resource);
+		}
+		let flags = p.read_uint8();
+		let status = 0;
+		if(flags & 0x8) status |= SOUND_MUTE;
+		if(flags & 0x10) status |= SOUND_PAUSED;
+		if(flags & 0x20) status |= SOUND_STREAM;
+		if(flags & 0x40) status |= SOUND_UPDATE;
+		let sound = {
+			recipients, resources,
+			repeat: (flags & 0x3),
+			wait: !!(flags & 0x4),
+			status,
+			channel: p.read_uint16(),
+			volume: p.read_uint8(),
+			frequency: p.read_float(),
+			pan: p.read_float(),
+			x:0,y:0,z:0,falloff:1
+		};
+		if(flags & 0x80) {
+			sound.x = p.read_float();
+			sound.y = p.read_float();
+			sound.z = p.read_float();
+			sound.falloff = p.read_float();
+		}
+		if(!sound.recipients.length) return;
+		if(!this.current_frame.sounds) this.current_frame.sounds = [];
+		this.current_frame.sounds.push(sound);
+	}
+
+	handle_chat(p : DataPointer) : void {
+		let flags = p.read_uint8();
+		let recipients : Array<undefined|string> = [];
+		if(flags & 4) recipients.push(undefined);
+		if(flags & 2) recipients.push('world');
+		if(flags & 1) {
+			let num_clients = p.read_vlq();
+			for(let i = 0; i < num_clients; i++) {
+				let ckey = this.client_id_to_ckey[p.read_uint16()];
+				if(ckey) recipients.push(ckey);
+			}
+		}
+		if(flags & 8) {
+			let num_turfs = p.read_vlq();
+			for(let i = 0; i < num_turfs; i++) p.read_uint32();
+		}
+		let msg = this.parse_string(p);
+		this.add_chat({
+			clients: recipients,
+			message: (flags & 16) ? {text: msg} : {html: msg}
+		});
+	}
+
+	client_id_to_ckey : Array<string|undefined> = [];
+	handle_client(p : DataPointer) : void {
+		let client_id = p.read_uint16();
+		let ckey = this.client_id_to_ckey[client_id];
+		let flags = p.read_uint8();
+		if(flags & 2) {
+			if(ckey != null) {
+				this.set_client_status(ckey, false);
+				this.set_mob(ckey, 0);
+				this.set_client_screen(ckey, []);
+				this.set_client_images(ckey, new Set());
+				this.client_id_to_ckey[client_id] = undefined;
+			}
+		}
+		if(flags & 1) {
+			ckey = this.parse_string(p);
+			let key = this.parse_string(p);
+			this.set_client_status(ckey, true);
+			this.client_id_to_ckey[client_id] = ckey;
+		}
+		if(flags & 4) {
+			let mob = p.read_uint32();
+			if(ckey) this.set_mob(ckey, mob);
+		}
+		if(flags & 8) {
+			let view_width = p.read_uint8();
+			let view_height = p.read_uint8();
+		}
+		if(flags & 16) {
+			let eye = p.read_uint32();
+		}
+		if(flags & 32) {
+			let old_screen = ckey ? (this.current_frame.forward.set_client_screen?.get(ckey) ?? this.running_client_screens.get(ckey) ?? []) : [];
+			let screen_set = new Set(old_screen);
+			let num_del = p.read_vlq();
+			for(let i = 0; i < num_del; i++) {
+				let ref = p.read_uint32();
+				screen_set.delete(ref);
+			}
+			let num_add = p.read_vlq();
+			for(let i = 0; i < num_add; i++) {
+				let ref = p.read_uint32();
+				screen_set.add(ref);
+			}
+			if(ckey && (num_add || num_del)) this.set_client_screen(ckey, [...screen_set]);
+
+			let old_images = ckey ? (this.current_frame.forward.set_client_images?.get(ckey) ?? this.running_client_images.get(ckey) ?? new Set<number>()) : new Set<number>();
+			let images_set = new Set(old_images);
+			let num_images_del = p.read_vlq();
+			for(let i = 0; i < num_images_del; i++) {
+				let ref = p.read_uint32();
+				images_set.delete(ref);
+			}
+			let num_images_add = p.read_vlq();
+			for(let i = 0; i < num_images_add; i++) {
+				let ref = p.read_uint32();
+				images_set.add(ref);
+			}
+			if(ckey && (num_images_add || num_images_del)) this.set_client_images(ckey, images_set);
+		}
+	}
+
+	handle_animate(p : DataPointer) : void {
+		while(!p.reached_end()) {
+			let target = p.read_uint32();
+			let appearance = this.parse_appearance(p) ?? this.appearance_id(ReaderAppearance.base);
+			let flags = p.read_uint8();
+			let loop = p.read_uint16();
+			let num_frames = p.read_vlq();
+			let animation : ReaderDemoAnimation = {
+				base_appearance: appearance,
+				end_appearance: appearance,
+				start_time: this.current_frame.time,
+				end_time: this.current_frame.time,
+				duration: 0,
+				chain_end_time: this.current_frame.time,
+				chain_parent: null,
+				frames: [],
+				loop,
+				parallel: !!(flags & 2),
+				end_now: !!(flags & 1)
+			};
+			if(animation.parallel || !animation.end_now) {
+				animation.chain_parent = this.current_frame.forward.set_animation?.get(target) ?? this.get_running_atom(target).animation ?? null;
+				if(animation.chain_parent && animation.chain_parent.chain_end_time < animation.start_time) animation.chain_parent = null;
+				if(animation.chain_parent) {
+					animation.chain_end_time = Math.max(animation.end_time, animation.chain_parent.chain_end_time);
+				}
+			}
+			for(let i = 0; i < num_frames; i++) {
+				let frame : ReaderDemoAnimationFrame = {
+					appearance: this.parse_appearance(p) ?? animation.end_appearance,
+					time: p.read_float(),
+					easing: p.read_uint8(),
+					linear_transform: !!(p.read_uint8() & 1)
+				};
+				animation.frames.push(frame);
+				animation.end_appearance = frame.appearance;
+				animation.duration += frame.time;
+			}
+			if(animation.frames.length <= 1) animation.loop = 1; // Animations need more than one frame to loop, so let's save the cpu cycles
+			animation.end_time = loop > 0 ? animation.start_time + (animation.duration * animation.loop) : Infinity;
+			animation.chain_end_time = Math.max(animation.end_time, animation.chain_end_time);
+
+			let existing_appearance = this.current_frame.forward.set_appearance?.get(target) ?? this.get_running_atom(target).appearance;
+			if(animation.frames.length == 0 || existing_appearance == null || animation.duration <= 0) {
+				this.set_animation(target, null);
+			} else {
+				this.set_animation(target, animation);
+			}
+		}
+	}
+
 	private copy_bufs : Array<{loc:number, vis_contents:number[]}|undefined> = [];
 
 	handle_atom_data(p : DataPointer, type : number) : void {
@@ -134,6 +336,9 @@ export class DemoParserBinary extends DemoParser {
 			break;
 		case 0x04:
 			ref_base = 0x03000000;
+			break;
+		case 0x05:
+			ref_base = 0x0D000000;
 			break;
 		default:
 			throw new Error("Invalid type for handle_atom_data");
@@ -156,7 +361,7 @@ export class DemoParserBinary extends DemoParser {
 				let ref = curr_id | ref_base;
 
 				let update_flags = p.read_uint8();
-				if(update_flags & 0xC0) {
+				if(update_flags & 0x80) {
 					throw new Error('Invalid atom update flags');
 				}
 				if(update_flags & 0x01) {
@@ -179,6 +384,12 @@ export class DemoParserBinary extends DemoParser {
 					let step_x = p.read_int16() / 256;
 					let step_y = p.read_int16() / 256;
 					// TODO: handle step_x/step_y
+				}
+				if(update_flags & 0x40) {
+					this.set_mobextras(ref, {
+						sight: p.read_uint16(),
+						see_invisible: p.read_uint8()
+					});
 				}
 				if(update_flags & 0x10) {
 					let loc : number = this.convert_relative_ref(copy_buf.loc, curr_id);
@@ -215,7 +426,7 @@ export class DemoParserBinary extends DemoParser {
 				/*appearance.desc = */this.parse_string(p);
 			}
 			if(daf & 0x400) {
-				/*appearance.screen_loc = */this.parse_string(p);
+				appearance.screen_loc = this.parse_string(p);
 			}
 			appearance.icon = this.parse_resource_id(p);
 			appearance.icon_state = this.parse_string(p);
@@ -277,61 +488,186 @@ export class DemoParserBinary extends DemoParser {
 				appearance.color_alpha = p.read_uint32();
 			}
 			if(daf & 0x200000) {
-				let cmf = p.read_uint8();
-				let cm = new Float32Array(20);
-				appearance.color_matrix = cm;
-				let next_num = (cmf & 1) ? (p : DataPointer) => {
-					return p.read_float();
-				} : (p : DataPointer) => {
-					return p.read_uint8() / 255;
-				};
-				cm[0] = next_num(p);
-				if(cmf & 0x80) {
-					cm[1] = next_num(p);
-					cm[2] = next_num(p);
-				} else {cm[2] = cm[1] = cm[0];}
-				if(cmf & 0x40) cm[3] = next_num(p);
-				cm[4] = next_num(p);
-				if(cmf & 0x80) {
-					cm[5] = next_num(p);
-					cm[6] = next_num(p);
-				} else {cm[6] = cm[5] = cm[4];}
-				if(cmf & 0x40) cm[7] = next_num(p);
-				cm[8] = next_num(p);
-				if(cmf & 0x80) {
-					cm[9] = next_num(p);
-					cm[10] = next_num(p);
-				} else {cm[10] = cm[9] = cm[8];}
-				if(cmf & 0x40) cm[11] = next_num(p);
-				if(cmf & 0x10) {
-					cm[12] = next_num(p);
-					if(cmf & 0x80) {
-						cm[13] = next_num(p);
-						cm[14] = next_num(p);
-					} else {cm[14] = cm[13] = cm[12];}
-				}
-				if(cmf & 0x20) cm[15] = next_num(p);
-				if(cmf & 0x02) {
-					cm[16] = next_num(p);
-					cm[17] = next_num(p);
-					cm[18] = next_num(p);
-				}
-				if(cmf & 0x04) {
-					cm[19] = next_num(p);
-				} else if(cmf & 0x08) {
-					cm[19] = 1;
-				}
+				appearance.color_matrix = p.read_color_matrix();
 			}
 			appearance.animate_movement = (daf >>> 22) & 0x3;
 			appearance.blend_mode = (daf >>> 24) & 0x7;
 			appearance.mouse_opacity = (daf >>> 27) & 0x3;
+			if(daf & 0x20000000) {
+				let filters : Filter[] = [];
+				let num_filters = p.read_vlq();
+				for(let i = 0; i < num_filters; i++) {
+					let filter = this.parse_filter(p);
+					if(filter) filters.push(filter);
+				}
+				if(filters.length) appearance.filters = filters;
+			}
+			appearance.override = !!(daf & 0x40000000);
+			if(daf & 0x80000000) {
+				appearance.vis_flags = p.read_uint8();
+			}
 
-			if(appearance.plane == 15) appearance.blend_mode = 4;
+			if(appearance.plane == 15 && !appearance.screen_loc) appearance.blend_mode = 4; // This only exists because I CBA to implement plane masters right now
 			return this.appearance_refs[appearance_ref] = this.appearance_id(appearance);
 		} else {
 			if(appearance_ref == 0xFFFF) return null;
 			let to_ret = this.appearance_refs[appearance_ref];
 			if(to_ret == null) throw new Error(`Reference to undefined appearance 0x${appearance_ref.toString(16)}`);
+			return to_ret;
+		}
+	}
+
+	private filter_refs : Array<Filter|null|undefined> = [];
+	parse_filter(p : DataPointer) : Filter|null {
+		let id_part = p.read_int32();
+		let filter_ref = id_part & 0xFFFFFF;
+		if(id_part & 0xFE000000) {
+			throw new Error('Bad bits set in filter data');
+		}
+		if(id_part & 0x1000000) {
+			if(filter_ref == 0xFFFF) throw new Error('Non-null 0xFFFF(NONE) filter');
+			let type = p.read_uint8();
+			let id = p.read_uint8();
+			let filter : Filter|null = null;
+			switch(type) {
+				case FilterType.Blur:
+					filter = {
+						type, id,
+						x: p.read_float(),
+						y: p.read_float(),
+						size: p.read_float()
+					};
+					break;
+				case FilterType.Outline:
+					filter = {
+						type, id,
+						size: p.read_float(),
+						color: p.read_uint32(),
+						flags: p.read_uint8()
+					};
+					break;
+				case FilterType.DropShadow:
+					filter = {
+						type, id,
+						x: p.read_float(),
+						y: p.read_float(),
+						size: p.read_float(),
+						offset: p.read_float(),
+						color: p.read_uint32()
+					};
+					break;
+				case FilterType.MotionBlur:
+					filter = {
+						type, id,
+						x: p.read_float(),
+						y: p.read_float()
+					};
+					break;
+				case FilterType.Wave:
+					filter = {
+						type, id,
+						x: p.read_float(),
+						y: p.read_float(),
+						size: p.read_float(),
+						offset: p.read_float(),
+						flags: p.read_uint8()
+					};
+					break;
+				case FilterType.Ripple:
+					filter = {
+						type, id,
+						x: p.read_float(),
+						y: p.read_float(),
+						size: p.read_float(),
+						repeat: p.read_float(),
+						radius: p.read_float(),
+						falloff: p.read_float(),
+						flags: p.read_uint8()
+					};
+					break;
+				case FilterType.Alpha:
+					filter = {
+						type, id,
+						x: p.read_float(),
+						y: p.read_float(),
+						icon: this.parse_resource_id(p),
+						render_source: p.read_cstring()
+					};
+					break;
+				case FilterType.Displace:
+					filter = {
+						type, id,
+						x: p.read_float(),
+						y: p.read_float(),
+						size: p.read_float(),
+						icon: this.parse_resource_id(p),
+						render_source: p.read_cstring()
+					};
+					break;
+				case FilterType.Color:
+					filter = {
+						type, id,
+						color: p.read_color_matrix(),
+						space: p.read_uint8()
+					};
+					break;
+				case FilterType.RadialBlur:
+					filter = {
+						type, id,
+						x: p.read_float(),
+						y: p.read_float(),
+						size: p.read_float()
+					};
+					break;
+				case FilterType.AngularBlur:
+					filter = {
+						type, id,
+						x: p.read_float(),
+						y: p.read_float(),
+						size: p.read_float()
+					};
+					break;
+				case FilterType.Rays:
+					filter = {
+						type, id,
+						x: p.read_float(),
+						y: p.read_float(),
+						size: p.read_float(),
+						color: p.read_uint32(),
+						offset: p.read_float(),
+						density: p.read_float(),
+						threshold: p.read_float(),
+						factor: p.read_float(),
+						flags: p.read_uint8()
+					};
+					break;
+				case FilterType.Layer:
+					filter = {
+						type, id,
+						x: p.read_float(),
+						y: p.read_float(),
+						icon: this.parse_resource_id(p),
+						render_source: p.read_cstring(),
+						flags: p.read_uint8(),
+						color: p.read_color_matrix(),
+						transform: [p.read_float(),p.read_float(),p.read_float(),p.read_float(),p.read_float(),p.read_float()],
+						blend_mode: p.read_uint8()
+					};
+					break;
+				case FilterType.Bloom:
+					filter = {
+						type, id,
+						color_alpha: p.read_uint32(),
+						size: p.read_float(),
+						offset: p.read_float()
+					};
+					break;
+			}
+			return this.filter_refs[filter_ref] = filter;
+		} else {
+			if(filter_ref == 0xFFFF) return null;
+			let to_ret = this.filter_refs[filter_ref];
+			if(to_ret === undefined) throw new Error(`Reference to undefined filter 0x${filter_ref.toString(16)}`);
 			return to_ret;
 		}
 	}
@@ -382,10 +718,15 @@ class DataPointer {
 		this.dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
 	}
 
+	reached_end() {
+		return this.i >= this.dv.byteLength;
+	}
+
 	read_vlq() : number  {
 		let number = 0;
-		while(this.i < this.data.length) {
+		while(true) {
 			number <<= 7;
+			if(this.i >= this.data.length) throw new Error('Reached end of data!');
 			let byte = this.data[this.i];
 			number += byte & 0x7F;
 			this.i++;
@@ -422,6 +763,57 @@ class DataPointer {
 		let n = this.data[this.i];
 		this.i++;
 		return n;
+	}
+	read_cstring() : string {
+		let str_start = this.i;
+		while(this.read_uint8() != 0);
+		return text_decoder.decode(this.data.subarray(str_start, this.i-1));
+	}
+	read_color_matrix() : Float32Array {
+		let cmf = this.read_uint8();
+		let cm = new Float32Array(20);
+		let next_num = (cmf & 1) ? () => {
+			return this.read_float();
+		} : () => {
+			return this.read_uint8() / 255;
+		};
+		cm[0] = next_num();
+		if(cmf & 0x80) {
+			cm[1] = next_num();
+			cm[2] = next_num();
+		} else {cm[2] = cm[1] = cm[0];}
+		if(cmf & 0x40) cm[3] = next_num();
+		cm[4] = next_num();
+		if(cmf & 0x80) {
+			cm[5] = next_num();
+			cm[6] = next_num();
+		} else {cm[6] = cm[5] = cm[4];}
+		if(cmf & 0x40) cm[7] = next_num();
+		cm[8] = next_num();
+		if(cmf & 0x80) {
+			cm[9] = next_num();
+			cm[10] = next_num();
+		} else {cm[10] = cm[9] = cm[8];}
+		if(cmf & 0x40) cm[11] = next_num();
+		if(cmf & 0x10) {
+			cm[12] = next_num();
+			if(cmf & 0x80) {
+				cm[13] = next_num();
+				cm[14] = next_num();
+			} else {cm[14] = cm[13] = cm[12];}
+		}
+		if(cmf & 0x20) cm[15] = next_num();
+		if(cmf & 0x02) {
+			cm[16] = next_num();
+			cm[17] = next_num();
+			cm[18] = next_num();
+		}
+		if(cmf & 0x04) {
+			cm[19] = next_num();
+		} else if(cmf & 0x08) {
+			cm[19] = 1;
+		}
+		return cm;
 	}
 
 	toString() {

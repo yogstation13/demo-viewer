@@ -11,11 +11,14 @@ import { ChatPanel } from "./chat";
 import { PlayerOptions } from "./options";
 import { InspectorPanel } from "./inspector";
 import { MainMenu } from './menu';
+import { DemoSound } from '../parser/base_parser';
+import { DemoSoundPlayer } from './sound/sound_player';
 
 export class DemoPlayerUi {
 	gl_holder : DemoPlayerGlHolder;
 	time_controls : DemoPlayerTimeControls;
 	viewport : DemoPlayerViewport;
+	sound_player : DemoSoundPlayer;
 
 	inspectors : InspectorPanel[] = [];
 	chat_windows : ChatPanel[] = [];
@@ -40,6 +43,7 @@ export class DemoPlayerUi {
 		this.viewport = new DemoPlayerViewport(this);
 		this.gl_holder = new DemoPlayerGlHolder(this);
 		this.time_controls = new DemoPlayerTimeControls(this);
+		this.sound_player = new DemoSoundPlayer(this);
 		
 		document.body.appendChild(this.corner_container);
 		this.corner_container.classList.add(classes.corner_container);
@@ -50,7 +54,7 @@ export class DemoPlayerUi {
 		this.menu_button.addEventListener("click", () =>{
 			if(!this.menu) this.menu = new MainMenu(this);
 			this.menu.put_below(this.menu_button);
-			this.menu.open();
+			this.menu.open(true);
 		})
 		
 		player.initialize_ui();
@@ -129,6 +133,7 @@ export class DemoPlayerUi {
 		if("stack" in e) e = e+","+e.stack;
 		else e = e+"";
 		this.viewport.update_nerdy_stats(e);
+		console.error(e);
 	}
 
 	update_time(time : number) {this.time_controls.update_time(time);}
@@ -183,5 +188,9 @@ export class DemoPlayerUi {
 				this.viewport.follow(follow_ref);
 			}
 		}
+	}
+
+	handle_sounds(sounds : DemoSound[]) : void {
+		this.sound_player.handle_sounds(sounds);
 	}
 }

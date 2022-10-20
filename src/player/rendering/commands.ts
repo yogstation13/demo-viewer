@@ -40,6 +40,17 @@ export interface AtlasTexData extends BaseRenderingCmd {
 		data: Uint8Array;
 	}[];
 }
+export interface AtlasTexMaptext extends BaseRenderingCmd {
+	cmd: "atlastexmaptext";
+	index:number;
+	parts: {
+		x:number;
+		y: number;
+		width: number;
+		height: number;
+		maptext: string;
+	}[];
+}
 export interface AtlasTexCopyWithin extends BaseRenderingCmd {
 	cmd: "atlestexcopywithin";
 	index:number;
@@ -67,4 +78,4 @@ export interface FollowDesc {
 	y: number|undefined;
 }
 
-export type RenderingCmd = CmdViewport|ResizeAtlas|AtlasTexData|AtlasTexCopyWithin|CmdBatchDraw|CmdCopyToViewport|CmdCopyToCanvas|CmdFlush;
+export type RenderingCmd = CmdViewport|ResizeAtlas|AtlasTexData|AtlasTexMaptext|AtlasTexCopyWithin|CmdBatchDraw|CmdCopyToViewport|CmdCopyToCanvas|CmdFlush;
