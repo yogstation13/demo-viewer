@@ -354,7 +354,11 @@ export class DemoParserText extends DemoParser {
 		if(p.read_next_or_end()) return appearance;
 		if(p.curr() != ';') appearance.layer = p.read_number();
 		if(p.read_next_or_end()) return appearance;
-		if(p.curr() != ';') appearance.plane = p.read_number();
+		if(p.curr() != ';') {
+			appearance.plane = p.read_number();
+			if(appearance.plane == 15) appearance.blend_mode = 4;
+			else appearance.blend_mode = 0;
+		}
 		if(p.read_next_or_end()) return appearance;
 		if(p.curr() != ';') appearance.dir = p.read_number();
 		if(appearance.dir == 0) appearance.dir_override = false;
@@ -368,11 +372,13 @@ export class DemoParserText extends DemoParser {
 				appearance.color_alpha = parseInt(color_str, 16) | (appearance.color_alpha & 0xFF000000);
 				p.idx += 7;
 			} else {
-				let color_matrix : number[] = [];
+				let color_matrix = new Float32Array(20);
+				let cmi = 0;
 				while('-.0123456789'.includes(p.curr())) {
-					color_matrix.push(p.read_number() / 255);
+					color_matrix[cmi++] = (p.read_number() / 255);
 					if(p.curr() == ',') p.idx++;
 				}
+				appearance.color_matrix = color_matrix;
 			}
 		}
 		if(p.read_next_or_end()) return appearance;
@@ -423,6 +429,7 @@ export class DemoParserText extends DemoParser {
 				p.idx++;
 				if(p.curr() == ']') break;
 				let overlay = this.read_appearance(p, appearance, false);
+				//if(overlay?.plane == 15) continue;
 				if(overlay) appearance.underlays.push(this.appearance_id(overlay));
 			}
 			if(p.curr() == '[' && !appearance.underlays.length) p.idx++;
