@@ -174,6 +174,7 @@ export type Appearance = BaseAppearance<Appearance> & AppearanceCachedData;
 export type TransitionalAppearance = BaseAppearance<TransitionalAppearance|Appearance|number> & Partial<AppearanceCachedData>;
 
 export namespace Appearance {
+	const empty_arr : [] = [];
 	export function resolve_plane(plane : number, parent_plane = 0) : number {
 		if(parent_plane < -10000 || parent_plane > 10000) parent_plane = resolve_plane(parent_plane);
 		if(plane < -10000 || plane > 10000) {
@@ -185,9 +186,14 @@ export namespace Appearance {
 	export function get_appearance_parts(appearance : Appearance) {
 		if(appearance.sorted_appearances) return appearance.sorted_appearances;
 		let appearances : Appearance[] = [];
+		let float_appearances : Appearance[] = [];
 		for(let underlay of appearance.underlays) {
 			underlay = overlay_inherit(appearance, underlay);
-			appearances.push(...get_appearance_parts(underlay));
+			if(resolve_plane(underlay.plane, appearance.plane) != resolve_plane(appearance.plane)) {
+				float_appearances.push(underlay);
+			} else {
+				appearances.push(...get_appearance_parts(underlay));
+			}
 		}
 		appearances.push(appearance)
 		for(let overlay of [...appearance.overlays].sort((a,b) => {
@@ -202,9 +208,14 @@ export namespace Appearance {
 			return 0;
 		})) {
 			overlay = overlay_inherit(appearance, overlay);
-			appearances.push(...get_appearance_parts(overlay));
+			if(resolve_plane(overlay.plane, appearance.plane) != resolve_plane(appearance.plane)) {
+				float_appearances.push(overlay);
+			} else {
+				appearances.push(...get_appearance_parts(overlay));
+			}
 		}
 		appearance.sorted_appearances = appearances;
+		appearance.floating_appearances = float_appearances.length ? float_appearances : empty_arr;
 		return appearances;
 	}
 
@@ -249,6 +260,10 @@ export namespace Appearance {
 		if(overlay.blend_mode == 0 && appearance.blend_mode > 0) {
 			clone();
 			overlay.blend_mode = appearance.blend_mode;
+		}
+		if(overlay.plane < -10000 || overlay.plane > 10000) {
+			clone();
+			overlay.plane = resolve_plane(overlay.plane, appearance.plane);
 		}
 		return overlay;
 	}

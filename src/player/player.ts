@@ -423,11 +423,14 @@ export class DemoPlayer {
 	
 	draw_buffer = new DrawBuffer();
 	draw_object_list(commands : RenderingCmd[], objects : Renderable[], see_invisible = 60, followview_window? : {x:number,y:number,width:number,height:number}|undefined) {
+		for(let i = 0; i < objects.length; i++) {
+			objects.push(...objects[i].get_floating_overlays(this, see_invisible))
+		}
 		let buffer = this.draw_buffer;
 		let buffer_index = 0;
 		objects.sort((a, b) => {
-			let a_appearance = a.get_appearance(this);
-			let b_appearance = b.get_appearance(this);
+			let a_appearance = a.get_appearance(this, see_invisible);
+			let b_appearance = b.get_appearance(this, see_invisible);
 			let a_plane = Appearance.resolve_plane(a_appearance?.plane ?? 0);
 			let b_plane = Appearance.resolve_plane(b_appearance?.plane ?? 0);
 			if(a_plane != b_plane) return a_plane - b_plane;
@@ -443,7 +446,7 @@ export class DemoPlayer {
 				x += followview_window.x*32;
 				y += followview_window.y*32;
 			}
-			let root_appearance = thing.get_appearance(this);
+			let root_appearance = thing.get_appearance(this, see_invisible);
 			if(!root_appearance || root_appearance.invisibility > see_invisible) continue;
 			for(let appearance of Appearance.get_appearance_parts(root_appearance)) {
 				if(!appearance.icon_state_dir) {
@@ -947,6 +950,29 @@ export abstract class Renderable {
 	get_offset(player:DemoPlayer) : [number,number] {return [0,0];}
 	get_click_target() : Atom|null {return null;};
 	is_screen_obj() : boolean {return false;}
+
+	floating_overlays? : OverlayProxy[] & {appearance_from? : Appearance|null};
+	get_floating_overlays(player:DemoPlayer, see_invisible? : number) : OverlayProxy[] {
+		let appearance = this.get_appearance(player, see_invisible);
+		if(appearance) Appearance.get_appearance_parts(appearance);
+		if(!appearance?.floating_appearances?.length) {
+			this.floating_overlays = undefined;
+			return empty_arr;
+		}
+		if(appearance != this.floating_overlays?.appearance_from) {
+			if(!this.floating_overlays) this.floating_overlays = [];
+			
+			while(appearance.floating_appearances.length > this.floating_overlays.length) {
+				this.floating_overlays.push(new OverlayProxy(this));
+			}
+			this.floating_overlays.length = appearance.floating_appearances.length;
+			this.floating_overlays.appearance_from = appearance;
+			for(let i = 0; i < this.floating_overlays.length; i++) {
+				this.floating_overlays[i].appearance = appearance.floating_appearances[i];
+			}
+		}
+		return this.floating_overlays;
+	}
 }
 
 export class Atom extends Renderable {
