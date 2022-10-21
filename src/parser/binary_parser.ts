@@ -81,8 +81,14 @@ export class DemoParserBinary extends DemoParser {
 		this.read_buffer_end -= chunk_start;
 	}
 
+	chunk_usage_stats : (number|undefined)[] = [];
+	num_empty_updates = 0;
+
 	handle_chunk(data : Uint8Array, type : number) : boolean {
 		let p = new DataPointer(data, this.file_index, type);
+		this.chunk_usage_stats[type] = (this.chunk_usage_stats[type] ?? 0) + data.length;
+		if(!this.current_frame.size_stats) this.current_frame.size_stats = [];
+		this.current_frame.size_stats[type] = (this.current_frame.size_stats[type] ?? 0) + data.length;
 
 		try {
 			switch(type) {
@@ -220,7 +226,6 @@ export class DemoParserBinary extends DemoParser {
 				this.set_client_status(ckey, false);
 				this.set_mob(ckey, 0);
 				this.set_client_screen(ckey, []);
-				this.set_client_images(ckey, new Set());
 				this.client_id_to_ckey[client_id] = undefined;
 			}
 		}
@@ -256,19 +261,28 @@ export class DemoParserBinary extends DemoParser {
 			}
 			if(ckey && (num_add || num_del)) this.set_client_screen(ckey, [...screen_set]);
 
-			let old_images = ckey ? (this.current_frame.forward.set_client_images?.get(ckey) ?? this.running_client_images.get(ckey) ?? new Set<number>()) : new Set<number>();
-			let images_set = new Set(old_images);
+			let images_del = ckey ? this.current_frame.forward.client_del_images?.get(ckey) : undefined;
+			let images_add = ckey ? this.current_frame.forward.client_add_images?.get(ckey) : undefined;
 			let num_images_del = p.read_vlq();
 			for(let i = 0; i < num_images_del; i++) {
 				let ref = p.read_uint32();
-				images_set.delete(ref);
+				if(!images_del) images_del = new Set();
+				images_del.add(ref);
+				images_add?.delete(ref);
 			}
 			let num_images_add = p.read_vlq();
 			for(let i = 0; i < num_images_add; i++) {
 				let ref = p.read_uint32();
-				images_set.add(ref);
+				if(!images_add) images_add = new Set();
+				images_add.add(ref);
+				images_del?.delete(ref);
 			}
-			if(ckey && (num_images_add || num_images_del)) this.set_client_images(ckey, images_set);
+			if(ckey) {
+				if(!this.current_frame.forward.client_add_images) this.current_frame.forward.client_add_images = new Map();
+				if(!this.current_frame.forward.client_del_images) this.current_frame.forward.client_del_images = new Map();
+				if(images_add) this.current_frame.forward.client_add_images.set(ckey, images_add);
+				if(images_del) this.current_frame.forward.client_del_images.set(ckey, images_del);
+			}
 		}
 	}
 
@@ -361,6 +375,7 @@ export class DemoParserBinary extends DemoParser {
 				let ref = curr_id | ref_base;
 
 				let update_flags = p.read_uint8();
+				if(!update_flags) this.num_empty_updates++;
 				if(update_flags & 0x80) {
 					throw new Error('Invalid atom update flags');
 				}

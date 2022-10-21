@@ -753,8 +753,19 @@ export class DemoPlayer {
 				for(let item of screen) if(item) atoms.push(this.get_atom(item));
 			}
 		}
-		if(dir.set_client_images) {
-			for(let [client, images] of dir.set_client_images) {
+		if(dir.client_del_images) {
+			for(let [client, todel] of dir.client_del_images) {
+				let images = this.client_images.get(client);
+				if(!images) images = new Set();
+				for(let image of todel) images.delete(image);
+				this.client_images.set(client, images);
+			}
+		}
+		if(dir.client_add_images) {
+			for(let [client, toadd] of dir.client_add_images) {
+				let images = this.client_images.get(client);
+				if(!images) images = new Set();
+				for(let image of toadd) images.add(image);
 				this.client_images.set(client, images);
 			}
 		}

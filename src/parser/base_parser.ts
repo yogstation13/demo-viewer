@@ -11,7 +11,6 @@ export abstract class DemoParser {
 	running_clients : Set<string> = new Set();
 	running_client_mobs : Map<string,number> = new Map();
 	running_client_screens : Map<string, number[]> = new Map();
-	running_client_images : Map<string, Set<number>> = new Map();
 
 	duration : number = 0;
 	current_frame : ReaderDemoFramePartial;
@@ -101,13 +100,6 @@ export abstract class DemoParser {
 					this.running_client_screens.set(client, screen);
 				}
 			}
-			if(frame.forward.set_client_images) {
-				frame.backward.set_client_images = new Map();
-				for(let [client, images] of frame.forward.set_client_images) {
-					frame.backward.set_client_images.set(client, this.running_client_images.get(client) ?? new Set());
-					this.running_client_images.set(client, images);
-				}
-			}
 			if(frame.forward.set_animation) {
 				frame.backward.set_animation = new Map();
 				for(let [atom, animation] of frame.forward.set_animation) {
@@ -116,6 +108,8 @@ export abstract class DemoParser {
 					running.animation = animation;
 				}
 			}
+			frame.backward.client_del_images = frame.forward.client_add_images;
+			frame.backward.client_add_images = frame.forward.client_del_images;
 			if(frame.forward.resize) {
 				frame.backward.resize = this.running_size;
 				this.running_size = frame.forward.resize;
@@ -172,10 +166,6 @@ export abstract class DemoParser {
 	protected set_client_screen(client : string, screen : number[]) {
 		if(!this.current_frame.forward.set_client_screen) this.current_frame.forward.set_client_screen = new Map();
 		this.current_frame.forward.set_client_screen.set(client, screen);
-	}
-	protected set_client_images(client : string, images : Set<number>) {
-		if(!this.current_frame.forward.set_client_images) this.current_frame.forward.set_client_images = new Map();
-		this.current_frame.forward.set_client_images.set(client, images);
 	}
 	protected set_animation(atom: number, animation: ReaderDemoAnimation|null) {
 		if(!this.current_frame.forward.set_animation) this.current_frame.forward.set_animation = new Map();
@@ -236,6 +226,7 @@ export interface BaseDemoFramePartial<T> {
 	forward: BaseDemoFrameDirection<T>;
 	chat?: DemoChatMessage[];
 	sounds? : DemoSound[];
+	size_stats? : (number|undefined)[];
 }
 export interface BaseDemoFrame<T> extends BaseDemoFramePartial<T> {
 	backward: BaseDemoFrameDirection<T>;
@@ -248,10 +239,11 @@ export interface BaseDemoFrameDirection<T> {
 	set_client_status? : Map<string, boolean>;
 	set_mob? : Map<string, number>;
 	set_client_screen? : Map<string, number[]>;
-	set_client_images? : Map<string, Set<number>>;
 	set_vis_contents? : Map<number,number[]>;
 	set_mobextras? : Map<number, {sight:number, see_invisible:number}>;
 	set_animation? : Map<number, BaseDemoAnimation<T>|null>;
+	client_add_images? : Map<string, Set<number>>;
+	client_del_images? : Map<string, Set<number>>;
 	resize? : [number,number,number];
 }
 export interface BaseDemoAnimation<T> {
