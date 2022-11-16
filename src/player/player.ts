@@ -448,6 +448,7 @@ export class DemoPlayer {
 			}
 			let root_appearance = thing.get_appearance(this, see_invisible);
 			if(!root_appearance || root_appearance.invisibility > see_invisible) continue;
+			if(root_appearance.plane == 15 && !this.show_darkness) continue;
 			for(let appearance of Appearance.get_appearance_parts(root_appearance)) {
 				if(!appearance.icon_state_dir) {
 					let dir = this.get_appearance_dir(appearance, buffer.atlas);
@@ -953,6 +954,12 @@ export class DemoPlayer {
 
 	get_resource_blob(id : number) : Promise<Blob> {
 		return this.get_resource(id).blob_promise();
+	}
+
+	show_darkness = true;
+	toggle_darkness() {
+		this.show_darkness = !this.show_darkness;
+		this.change_counter++;
 	}
 }
 

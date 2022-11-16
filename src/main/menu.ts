@@ -74,6 +74,10 @@ export class MainMenu extends Menu {
 			this.ui.nerdy_stats.style.display = (this.ui.nerdy_stats.style.display == "block") ? "none" : "block";
 			this.close();
 		});
+		this.add_basic_button("Toggle Darkness", null, () => {
+			this.ui.player.toggle_darkness();
+			this.close();
+		})
 	}
 }
 
