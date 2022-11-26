@@ -55,51 +55,55 @@ export class DemoPlayer {
 		this.icon_loader = Comlink.wrap<IconLoader>(icon_loader);
 
 		this.parser_interface.consume_data(Comlink.proxy(async (data) => {
-			if(!this.rev_data) {
-				this.rev_data = await this.parser_interface.rev_data;	
-			}
-			for(let appearance of data.appearances) {
-				let converting = appearance as TransitionalAppearance;
-				for(let i = 0; i < converting.overlays.length; i++) {
-					let overlay = converting.overlays[i];
-					if(typeof overlay == "number") converting.overlays[i] = this.appearance_cache[overlay]
+			try {
+				if(!this.rev_data) {
+					this.rev_data = await this.parser_interface.rev_data;	
 				}
-				for(let i = 0; i < converting.underlays.length; i++) {
-					let underlay = converting.underlays[i];
-					if(typeof underlay == "number") converting.underlays[i] = this.appearance_cache[underlay]
+				for(let appearance of data.appearances) {
+					let converting = appearance as TransitionalAppearance;
+					for(let i = 0; i < converting.overlays.length; i++) {
+						let overlay = converting.overlays[i];
+						if(typeof overlay == "number") converting.overlays[i] = this.appearance_cache[overlay]
+					}
+					for(let i = 0; i < converting.underlays.length; i++) {
+						let underlay = converting.underlays[i];
+						if(typeof underlay == "number") converting.underlays[i] = this.appearance_cache[underlay]
+					}
+					converting.sorted_appearances = undefined;
+					converting.icon_state_dir = undefined;
+					converting.derived_from = converting as Appearance;
+					this.appearance_cache.push(converting as Appearance);
 				}
-				converting.sorted_appearances = undefined;
-				converting.icon_state_dir = undefined;
-				converting.derived_from = converting as Appearance;
-				this.appearance_cache.push(converting as Appearance);
-			}
-			for(let frame of data.frames) {
-				let converting = frame as TransitionalDemoFrame;
-				this.dereference_frame_direction(frame.forward);
-				this.dereference_frame_direction(frame.backward);
-				this.frames.push(converting as DemoFrame);
-			}
-			for(let res_load of data.resource_loads) {
-				let res = this.get_resource(res_load.id);
-				if(res_load.blob) {
-					res.data = res_load.blob;
-					res.load_url = undefined;
+				for(let frame of data.frames) {
+					let converting = frame as TransitionalDemoFrame;
+					this.dereference_frame_direction(frame.forward);
+					this.dereference_frame_direction(frame.backward);
+					this.frames.push(converting as DemoFrame);
 				}
-				if(res_load.path) {
-					res.path = res_load.path;
-					if(!res.data) {
-						let paintings_pattern = "data/paintings/public/";
-						if(res_load.path.startsWith(paintings_pattern) && this.rev_data?.repo == "yogstation13/Yogstation") {
-							res.load_url = "https://cdn.yogstation.net/paintings/" + res_load.path.substring(paintings_pattern.length);
-						} else {
-							res.load_url = `https://cdn.jsdelivr.net/gh/${this.rev_data?.repo || "yogstation13/Yogstation"}@${(this.rev_data?.commit || "master")}/${res_load.path}`;
+				for(let res_load of data.resource_loads) {
+					let res = this.get_resource(res_load.id);
+					if(res_load.blob) {
+						res.data = res_load.blob;
+						res.load_url = undefined;
+					}
+					if(res_load.path) {
+						res.path = res_load.path;
+						if(!res.data) {
+							let paintings_pattern = "data/paintings/public/";
+							if(res_load.path.startsWith(paintings_pattern) && this.rev_data?.repo == "yogstation13/Yogstation") {
+								res.load_url = "https://cdn.yogstation.net/paintings/" + res_load.path.substring(paintings_pattern.length);
+							} else {
+								res.load_url = `https://cdn.jsdelivr.net/gh/${this.rev_data?.repo || "yogstation13/Yogstation"}@${(this.rev_data?.commit || "master")}/${res_load.path}`;
+							}
 						}
 					}
+					res.update();
 				}
-				res.update();
+				if(this.ui) this.ui.update_duration(this.get_demo_duration());
+				this.advance_time();
+			} catch(e) {
+				console.error(e);
 			}
-			if(this.ui) this.ui.update_duration(this.get_demo_duration());
-			this.advance_time();
 		}));
 
 		this.chat_css = this.parser_interface.chat_css;

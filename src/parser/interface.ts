@@ -1,3 +1,5 @@
+import xxhash from "xxhash-wasm";
+import { ReaderAppearance } from "../misc/appearance";
 import { create_exposed_promise } from "../misc/exposed_promise";
 import { DemoParser, ReaderDemoBatchData } from "./base_parser";
 import { DemoParserBinary } from "./binary_parser";
@@ -9,9 +11,9 @@ export class DemoParserInterface {
 	public async handle_data(data : Uint8Array) {
 		if(!this._parser) {
 			if(data[0] == 0xCB) {
-				this._parser = new DemoParserBinary(this._frame_callbacks, this.rev_data.resolve);
+				this._parser = new DemoParserBinary(this._frame_callbacks, this.rev_data.resolve, await xxhash());
 			} else {
-				this._parser = new DemoParserText(this._frame_callbacks, this.rev_data.resolve);
+				this._parser = new DemoParserText(this._frame_callbacks, this.rev_data.resolve, await xxhash());
 			}
 			if(this._progress_callback) this._parser.progress_callback = this._progress_callback;
 		}
@@ -61,11 +63,17 @@ export class DemoParserInterface {
 		while(true) {
 			await this.wait_for_frames(0);
 			if(!this._parser) continue;
+			if(this._parser.frames[0] && this._parser.frames[0].time > 41800) debugger;
 			let data : ReaderDemoBatchData = {
 				frames: this._parser.frames.slice(0),
 				appearances: this._parser.appearance_cache.slice(appearances_known),
 				resource_loads: this._parser.resource_loads.slice(0)
 			};
+			if(this._parser instanceof DemoParserBinary) {
+				for(let i = appearances_known; i < this._parser.appearance_cache.length; i++) {
+					this._parser.appearance_cache[i] = ReaderAppearance.base;
+				}
+			}
 			this._parser.frames.length = 0;
 			this._parser.resource_loads.length = 0;
 			appearances_known = this._parser.appearance_cache.length;

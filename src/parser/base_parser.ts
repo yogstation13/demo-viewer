@@ -1,7 +1,10 @@
+import { XXHashAPI } from "xxhash-wasm";
 import { Appearance, BaseAppearance, ReaderAppearance } from "../misc/appearance";
 import { RevData } from "./interface";
 
 const empty_arr : [] = [];
+
+const xxhseed = Math.floor(Math.random() * 0x100000000);
 
 export abstract class DemoParser {
 	abstract handle_data(data : Uint8Array) : void|Promise<void>;
@@ -15,7 +18,7 @@ export abstract class DemoParser {
 	duration : number = 0;
 	current_frame : ReaderDemoFramePartial;
 	frames : ReaderDemoFrame[] = [];
-	constructor(protected frame_callbacks : Array<() => void>, protected set_rev_data : (rev:RevData) => void) {
+	constructor(protected frame_callbacks : Array<() => void>, protected set_rev_data : (rev:RevData) => void, protected xxh : XXHashAPI) {
 		this.current_frame = {
 			time: 0,
 			forward: {}
@@ -189,7 +192,7 @@ export abstract class DemoParser {
 		this.current_frame.forward.set_mobextras.set(atom, extras);
 	}
 
-	private appearance_id_cache = new Map<string, number>();
+	private appearance_id_cache = new Map<number, number>();
 	appearance_cache : ReaderAppearance[] = [];
 
 	protected appearance_id(a : ReaderAppearance) : number;
@@ -198,12 +201,13 @@ export abstract class DemoParser {
 	protected appearance_id(a : ReaderAppearance|null) : number|null {
 		if(a == null) return null;
 		let str = JSON.stringify(Object.values(a));
-		let id = this.appearance_id_cache.get(str);
+		let hash = this.xxh.h32(str, xxhseed);
+		let id = this.appearance_id_cache.get(hash);
 		if(id != undefined) {
 			return id;
 		}
 		id = this.appearance_cache.length;
-		this.appearance_id_cache.set(str, id);
+		this.appearance_id_cache.set(hash, id);
 		this.appearance_cache.push(a);
 		return id;
 	}
