@@ -63,7 +63,6 @@ export class DemoParserInterface {
 		while(true) {
 			await this.wait_for_frames(0);
 			if(!this._parser) continue;
-			if(this._parser.frames[0] && this._parser.frames[0].time > 41800) debugger;
 			let data : ReaderDemoBatchData = {
 				frames: this._parser.frames.slice(0),
 				appearances: this._parser.appearance_cache.slice(appearances_known),
