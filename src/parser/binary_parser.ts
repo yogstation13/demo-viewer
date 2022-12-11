@@ -515,7 +515,8 @@ export class DemoParserBinary extends DemoParser {
 					let filter = this.parse_filter(p);
 					if(filter) filters.push(filter);
 				}
-				if(filters.length) appearance.filters = filters;
+				// Uncomment this once filters are actually being used somewhere
+				//if(filters.length) appearance.filters = filters;
 			}
 			appearance.override = !!(daf & 0x40000000);
 			if(daf & 0x80000000) {
