@@ -301,6 +301,7 @@ export class DemoParserBinary extends DemoParser {
 				duration: 0,
 				chain_end_time: this.current_frame.time,
 				chain_parent: null,
+				chain_parent_influence_end: Infinity,
 				frames: [],
 				loop,
 				parallel: !!(flags & 2),
@@ -308,7 +309,7 @@ export class DemoParserBinary extends DemoParser {
 			};
 			if(animation.parallel || !animation.end_now) {
 				animation.chain_parent = this.current_frame.forward.set_animation?.get(target) ?? this.get_running_atom(target).animation ?? null;
-				if(animation.chain_parent && animation.chain_parent.chain_end_time < animation.start_time) animation.chain_parent = null;
+				if(animation.chain_parent && animation.chain_parent.chain_end_time <= animation.start_time) animation.chain_parent = null;
 				if(animation.chain_parent) {
 					animation.chain_end_time = Math.max(animation.end_time, animation.chain_parent.chain_end_time);
 				}
@@ -325,6 +326,23 @@ export class DemoParserBinary extends DemoParser {
 				animation.duration += frame.time;
 			}
 			if(animation.frames.length <= 1) animation.loop = 1; // Animations need more than one frame to loop, so let's save the cpu cycles
+			if(!animation.parallel && animation.chain_parent) {
+				animation.chain_parent_influence_end = animation.start_time + (animation.frames[0]?.time ?? 0)
+			}
+			let checkpoint = animation;
+			while(checkpoint.chain_parent && checkpoint.chain_parent_influence_end > animation.start_time) checkpoint = checkpoint.chain_parent;
+			if(checkpoint.chain_parent) {
+				// Cut off the chain because the structured clone algorithm doesn't like long chains.
+				// Specifically cut it off at the point where the animation has lost its influence.
+				if(animation == checkpoint) {
+					checkpoint.chain_parent = null;
+				} else {
+					let ccp = checkpoint.chain_parent;
+					checkpoint.chain_parent = null;
+					animation.chain_parent = DemoParserBinary.clone_animation_chain(animation.chain_parent);
+					checkpoint.chain_parent = ccp;
+				}
+			}
 			animation.end_time = loop > 0 ? animation.start_time + (animation.duration * animation.loop) : Infinity;
 			animation.chain_end_time = Math.max(animation.end_time, animation.chain_end_time);
 
@@ -335,6 +353,14 @@ export class DemoParserBinary extends DemoParser {
 				this.set_animation(target, animation);
 			}
 		}
+	}
+
+	static clone_animation_chain(anim : ReaderDemoAnimation|null) : ReaderDemoAnimation|null {
+		if(!anim) return null;
+		return {
+			...anim,
+			chain_parent: this.clone_animation_chain(anim.chain_parent)
+		};
 	}
 
 	private copy_bufs : Array<{loc:number, vis_contents:number[]}|undefined> = [];

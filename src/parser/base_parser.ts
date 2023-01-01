@@ -258,6 +258,7 @@ export interface BaseDemoAnimation<T> {
 	end_time: number;
 	chain_end_time: number;
 	chain_parent: BaseDemoAnimation<T>|null;
+	chain_parent_influence_end: number;
 	base_appearance: T;
 	end_appearance: T;
 	frames: BaseDemoAnimationFrame<T>[];
