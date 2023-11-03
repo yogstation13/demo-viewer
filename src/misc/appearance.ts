@@ -253,9 +253,6 @@ export namespace Appearance {
 		}
 		appearance.sorted_appearances = appearances;
 		appearance.floating_appearances = float_appearances.length ? float_appearances : empty_arr;
-		if(appearance.name == "Dravak Sathune"){
-			console.log("Dravak", appearance)
-		}
 		return appearances;
 	}
 
