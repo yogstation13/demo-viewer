@@ -195,8 +195,21 @@ export namespace Appearance {
 				appearances.push(...get_appearance_parts(underlay));
 			}
 		}
-		appearances.push(appearance)
-		for(let overlay of [...appearance.overlays].sort((a,b) => {
+		appearances.push(appearance);
+		
+		/**
+		This is monster's original sort method which works on some browsers, but not all because it doesn't have all 3 cases required to uphold symmetry.
+		The cases required for a complete custom sort are
+		
+		|	compareFn(a, b)	| return value	|			sort order
+		|					|		> 0 	|	sort a after b, e.g. [b, a]
+		|					|		< 0 	|	sort a before b, e.g. [a, b]
+		|					|		=== 0 	|	keep original order of a and b
+		
+		So the issue is that monster's only ever returned negatives or 0, so the lacking positive result would break some browser's js engine like firefox.
+		Whereas chromium based browsers (i.e. Google Chrome, Microsoft Edge) would function as intended.
+		
+		const appearances_to_sort = [...appearance.overlays].sort((a,b) => {
 			let a_layer = a.layer < 0 ? appearance.layer : a.layer;
 			let b_layer = b.layer < 0 ? appearance.layer : b.layer;
 			if(a_layer < b_layer)
@@ -206,7 +219,31 @@ export namespace Appearance {
 			if(a_float_layer < b_float_layer)
 				return a_float_layer - b_float_layer;
 			return 0;
-		})) {
+		})
+		 
+		*/
+
+		//To circumvent the sorting issues, we're going to split the possible layers into 2 arrays. 
+		//1 for regular layers which have positive values and 1 for float layers which have negative values
+		const regular_layers = appearance.overlays.filter((overlay) => overlay.layer >= 0);
+		const float_layers = appearance.overlays.filter((overlay) => overlay.layer < 0);
+		
+		//sort by descending order for regular layers
+		regular_layers.sort((a,b) => {
+			return a.layer - b.layer;
+		});
+		
+		//sort by ascending order for float layers
+		float_layers.sort((a,b) => {
+			return a.layer - b.layer;
+		});
+		
+		//now combine the arrays with regular layers first.
+		const appearances_to_sort = regular_layers.concat(float_layers);
+		
+		//Resume monster's code
+
+		for(let overlay of appearances_to_sort) {
 			overlay = overlay_inherit(appearance, overlay);
 			if(resolve_plane(overlay.plane, appearance.plane) != resolve_plane(appearance.plane)) {
 				float_appearances.push(overlay);
@@ -216,6 +253,9 @@ export namespace Appearance {
 		}
 		appearance.sorted_appearances = appearances;
 		appearance.floating_appearances = float_appearances.length ? float_appearances : empty_arr;
+		if(appearance.name == "Dravak Sathune"){
+			console.log("Dravak", appearance)
+		}
 		return appearances;
 	}
 
