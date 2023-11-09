@@ -974,7 +974,6 @@ export class DemoPlayer {
 	 */
 	set_see_invisible(vision_setting: number = SeeInvisibility.SEE_INVISIBLE_OBSERVER) {
 		this.see_invisible = vision_setting;
-		//this.see_ghosts = !this.see_ghosts;
 		this.change_counter++;
 	}
 }
