@@ -9,7 +9,7 @@ import { AtlasNode, DmiAtlas } from "./rendering/atlas";
 import { IconState, IconStateDir } from "./rendering/icon";
 import { CmdViewport, FollowDesc, RenderingCmd } from "./rendering/commands";
 import { DrawBuffer } from "./rendering/buffer";
-import { LONG_GLIDE, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM, SEE_MOBS, SEE_OBJS, SEE_THRU, SEE_TURFS } from "../misc/constants";
+import { LONG_GLIDE, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM, SEE_MOBS, SEE_OBJS, SEE_THRU, SEE_TURFS, SeeInvisibility } from "../misc/constants";
 import { matrix_is_identity, matrix_multiply } from "../misc/matrix";
 import { despam_promise } from "../misc/promise_despammer";
 import { view_turfs } from "./view";
@@ -44,7 +44,8 @@ export class DemoPlayer {
 	icon_loader : IconLoader;
 
 	z_level = 2;
-	use_index=0;
+	use_index = 0;
+	see_invisible = 60;
 
 	change_counter = 0;
 
@@ -334,7 +335,7 @@ export class DemoPlayer {
 				height: d_turf_window.top - d_turf_window.bottom
 			}
 		});
-		this.draw_object_list(drawing_commands, objects, undefined, followview_window);
+		this.draw_object_list(drawing_commands, objects, this.see_invisible, followview_window);
 		drawing_commands.push({cmd: "copytoviewport", follow_data, followview_window});
 		this.last_objects = objects;
 
@@ -963,6 +964,17 @@ export class DemoPlayer {
 	show_darkness = true;
 	toggle_darkness() {
 		this.show_darkness = !this.show_darkness;
+		this.change_counter++;
+	}
+	
+	/**
+	 * Adjust the see_invisibility that you can see on the replay viewer through the vision menu. Invisibility flags is how some objects and items are invisible
+	to mobs. Like regular living players not being able to see ghosts, or cables under floor tiles
+	 * @param vision_setting a number to determine the sight flag for the viewer. the SeeInvisibility enum has all the relevant vision flag settings
+	 */
+	set_see_invisible(vision_setting: number = SeeInvisibility.SEE_INVISIBLE_OBSERVER) {
+		this.see_invisible = vision_setting;
+		//this.see_ghosts = !this.see_ghosts;
 		this.change_counter++;
 	}
 }
