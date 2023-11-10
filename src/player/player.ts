@@ -45,7 +45,7 @@ export class DemoPlayer {
 
 	z_level = 2;
 	use_index = 0;
-	see_invisible = 60;
+	see_invisible = SeeInvisibility.SEE_INVISIBLE_OBSERVER;
 
 	change_counter = 0;
 
