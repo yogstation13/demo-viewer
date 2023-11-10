@@ -187,7 +187,7 @@ export namespace Appearance {
 	 * Used to determine if the appearance belongs to a plane that should be invisible when darkness is toggled off. Without darkness there's no reason to see sprites
 	 * that exist to be an alpha mask of the dark.
 	 * @param plane of the appearance as a number
-	 * @returns TRUE or FALSE depending
+	 * @returns TRUE if the plane value falls within the range of Byond lighting planes, FALSE if the plane is anything else
 	 */
 	export function is_lighting_plane(plane : number): boolean {
 		return (plane >= Planes.EMISSIVE_BLOCKER_PLANE && plane <= Planes.O_LIGHTING_VISUAL_PLANE)
