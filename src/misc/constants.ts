@@ -35,3 +35,11 @@ export const SOUND_STREAM = 4;
 export const SOUND_UPDATE = 16;
 
 export const MAX_LAYER : number = 32;
+
+export const enum SeeInvisibility{
+    SEE_INVISIBLE_MINIMUM = 5,
+    SEE_INVISIBLE_LIVING = 25,
+    SEE_INVISIBLE_OBSERVER = 60,
+    INVISIBILITY_MAXIMUM = 100,
+    INVISIBILITY_ABSTRACT = 101,
+}
