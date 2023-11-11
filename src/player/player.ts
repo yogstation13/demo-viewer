@@ -9,7 +9,7 @@ import { AtlasNode, DmiAtlas } from "./rendering/atlas";
 import { IconState, IconStateDir } from "./rendering/icon";
 import { CmdViewport, FollowDesc, RenderingCmd } from "./rendering/commands";
 import { DrawBuffer } from "./rendering/buffer";
-import { LONG_GLIDE, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM, SEE_MOBS, SEE_OBJS, SEE_THRU, SEE_TURFS, SeeInvisibility } from "../misc/constants";
+import { LONG_GLIDE, Planes, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM, SEE_MOBS, SEE_OBJS, SEE_THRU, SEE_TURFS } from "../misc/constants";
 import { matrix_is_identity, matrix_multiply } from "../misc/matrix";
 import { despam_promise } from "../misc/promise_despammer";
 import { view_turfs } from "./view";
@@ -453,7 +453,7 @@ export class DemoPlayer {
 			}
 			let root_appearance = thing.get_appearance(this, see_invisible);
 			if(!root_appearance || root_appearance.invisibility > see_invisible) continue;
-			if(root_appearance.plane == 15 && !this.show_darkness) continue;
+			if(Appearance.is_lighting_plane(root_appearance.plane) && !this.show_darkness) continue;
 			for(let appearance of Appearance.get_appearance_parts(root_appearance)) {
 				if(!appearance.icon_state_dir) {
 					let dir = this.get_appearance_dir(appearance, buffer.atlas);
