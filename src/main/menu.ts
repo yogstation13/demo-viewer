@@ -5,6 +5,7 @@ import { DemoPlayerUi } from "./ui";
 import classes from "./menu.scss";
 import { InspectorPanel } from "./inspector";
 import { ChatPanel } from "./chat";
+import { SeeInvisibility } from "../misc/constants";
 
 export class Menu extends Panel {
 	constructor() {
@@ -74,10 +75,13 @@ export class MainMenu extends Menu {
 			this.ui.nerdy_stats.style.display = (this.ui.nerdy_stats.style.display == "block") ? "none" : "block";
 			this.close();
 		});
+		let vision_button = this.add_basic_button("Set Vision", null, () => {
+			new SeeInvisibilityMenu(this.ui).put_to_right(vision_button).open(true);
+		});
 		this.add_basic_button("Toggle Darkness", null, () => {
 			this.ui.player.toggle_darkness();
 			this.close();
-		})
+		});
 	}
 }
 
@@ -234,6 +238,28 @@ export class ChatOptionsMenu extends Menu {
 		});
 		this.add_basic_button("Decrease Font Size", null, () => {
 			parent.adjust_font_size(-1);
+		});
+	}
+}
+
+///For setting the see_invisibility value of the demo player
+export class SeeInvisibilityMenu extends Menu {
+	constructor(public ui : DemoPlayerUi) {
+		super();
+		this.add_basic_button("Minimum Possible Vision", null, () => {
+			ui.player.set_see_invisible(SeeInvisibility.SEE_INVISIBLE_MINIMUM);
+		});
+		this.add_basic_button("Regular Vision", null, () => {
+			ui.player.set_see_invisible(SeeInvisibility.SEE_INVISIBLE_LIVING);
+		});
+		this.add_basic_button("Ghost vision", null, () => {
+			ui.player.set_see_invisible(SeeInvisibility.SEE_INVISIBLE_OBSERVER);
+		});
+		this.add_basic_button("ALL vision", null, () => {
+			ui.player.set_see_invisible(SeeInvisibility.INVISIBILITY_MAXIMUM);
+		});
+		this.add_basic_button("Debug vision", null, () => {
+			ui.player.set_see_invisible(SeeInvisibility.INVISIBILITY_ABSTRACT);
 		});
 	}
 }

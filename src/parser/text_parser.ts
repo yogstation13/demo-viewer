@@ -1,6 +1,7 @@
 import { normalize_ref } from "../misc/ref";
 import { ReaderAppearance } from "../misc/appearance";
 import { DemoParser } from "./base_parser";
+import { Planes } from "../misc/constants";
 
 const MIN_VERSION = 1;
 const MAX_VERSION = 1;
@@ -247,7 +248,7 @@ export class DemoParserText extends DemoParser {
 			icon_state: `${(((x + y) ^ ~(x * y) + z) % 25 + 25) % 25}`,
 			name: 'space',
 			layer: 1.8,
-			plane: -95
+			plane: Planes.SPACE_PLANE,
 		};
 	}
 
@@ -267,7 +268,7 @@ export class DemoParserText extends DemoParser {
 				icon_state: '1',
 				name: 'space',
 				layer: 1.8,
-				plane: -95
+				plane: Planes.SPACE_PLANE
 			};
 			if(p.curr() == 't') {
 				p.idx++;
@@ -356,7 +357,7 @@ export class DemoParserText extends DemoParser {
 		if(p.read_next_or_end()) return appearance;
 		if(p.curr() != ';') {
 			appearance.plane = p.read_number();
-			if(appearance.plane == 15) appearance.blend_mode = 4;
+			if(appearance.plane == Planes.LIGHTING_PLANE) appearance.blend_mode = 4;
 			else appearance.blend_mode = 0;
 		}
 		if(p.read_next_or_end()) return appearance;
@@ -429,7 +430,7 @@ export class DemoParserText extends DemoParser {
 				p.idx++;
 				if(p.curr() == ']') break;
 				let overlay = this.read_appearance(p, appearance, false);
-				//if(overlay?.plane == 15) continue;
+				//if(overlay?.plane == Planes.LIGHTING_PLANE) continue;
 				if(overlay) appearance.underlays.push(this.appearance_id(overlay));
 			}
 			if(p.curr() == '[' && !appearance.underlays.length) p.idx++;

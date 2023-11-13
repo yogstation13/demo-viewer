@@ -35,3 +35,31 @@ export const SOUND_STREAM = 4;
 export const SOUND_UPDATE = 16;
 
 export const MAX_LAYER : number = 32;
+
+
+///All relevant planes used by Yogstation categorized into an enum of their values
+export const enum Planes{
+    LOWEST_EVER_PLANE = -10000,
+    CLICKCATCHER_PLANE = -99,
+    SPACE_PLANE = -95,
+    FLOOR_PLANE = -2,
+    GAME_PLANE = -1,
+    BLACKNESS_PLANE = 0,
+    EMISSIVE_BLOCKER_PLANE = 12,
+    EMISSIVE_PLANE = 13,
+    EMISSIVE_UNBLOCKABLE_PLANE = 14,
+    LIGHTING_PLANE = 15,
+    O_LIGHTING_VISUAL_PLANE = 16,
+    FLOOR_OPENSPACE_PLANE = 17,
+    BYOND_LIGHTING_PLANE = 18,
+    CAMERA_STATIC_PLANE = 19,
+    HIGHEST_EVER_PLANE = 10000,
+}
+
+export const enum SeeInvisibility{
+    SEE_INVISIBLE_MINIMUM = 5,
+    SEE_INVISIBLE_LIVING = 25,
+    SEE_INVISIBLE_OBSERVER = 60,
+    INVISIBILITY_MAXIMUM = 100,
+    INVISIBILITY_ABSTRACT = 101,
+}
