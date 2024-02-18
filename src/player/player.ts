@@ -9,11 +9,12 @@ import { AtlasNode, DmiAtlas } from "./rendering/atlas";
 import { IconState, IconStateDir } from "./rendering/icon";
 import { CmdViewport, FollowDesc, RenderingCmd } from "./rendering/commands";
 import { DrawBuffer } from "./rendering/buffer";
-import { LONG_GLIDE, Planes, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM, SEE_MOBS, SEE_OBJS, SEE_THRU, SEE_TURFS, SeeInvisibility } from "../misc/constants";
+import { BlendMode, LONG_GLIDE, Planes, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM, SEE_MOBS, SEE_OBJS, SEE_THRU, SEE_TURFS, SeeInvisibility } from "../misc/constants";
 import { matrix_is_identity, matrix_multiply } from "../misc/matrix";
 import { despam_promise } from "../misc/promise_despammer";
 import { view_turfs } from "./view";
 import { animate_appearance, appearance_interpolate } from "./rendering/animation";
+import { not_null } from "../misc/gl_util";
 
 const empty_arr : [] = [];
 
@@ -409,7 +410,7 @@ export class DemoPlayer {
 					height: atom_bounds.height / 32,
 				}
 			});
-			this.draw_object_list(drawing_commands, [atom], 101);
+			this.draw_object_list(drawing_commands, [atom], SeeInvisibility.INVISIBILITY_ABSTRACT);
 			drawing_commands.push({cmd: "copytocanvas", canvas_index: i});
 		}
 		drawing_commands.push({cmd: "flush"});
@@ -427,9 +428,10 @@ export class DemoPlayer {
 	}
 	
 	draw_buffer = new DrawBuffer();
-	draw_object_list(commands : RenderingCmd[], objects : Renderable[], see_invisible = 60, followview_window? : {x:number,y:number,width:number,height:number}|undefined) {
+	draw_object_list(commands : RenderingCmd[], objects : Renderable[], see_invisible = SeeInvisibility.SEE_INVISIBLE_OBSERVER, followview_window? : {x:number,y:number,width:number,height:number}|undefined) {
 		for(let i = 0; i < objects.length; i++) {
-			objects.push(...objects[i].get_floating_overlays(this, see_invisible))
+			let overlays_to_push = objects[i].get_floating_overlays(this, see_invisible);
+			objects.push(...overlays_to_push);
 		}
 		let buffer = this.draw_buffer;
 		let buffer_index = 0;
@@ -443,7 +445,6 @@ export class DemoPlayer {
 			let b_layer = b_appearance?.layer ?? 0;
 			return a_layer - b_layer;
 		});
-
 		for(let thing of objects) {
 			let [x,y] = thing.get_offset(this);
 			if(thing.is_screen_obj()) {
@@ -462,13 +463,14 @@ export class DemoPlayer {
 					}
 				}
 				if(appearance.icon_state_dir?.atlas_node) {
-					if(buffer.atlas != appearance.icon_state_dir.atlas_node?.atlas || (buffer.blend_mode || 1) != (appearance.blend_mode || 1) || buffer.uses_color_matrices != !!appearance.color_matrix) {
+					if(buffer.atlas != appearance.icon_state_dir.atlas_node?.atlas || Appearance.is_lighting_plane(buffer.plane) != Appearance.is_lighting_plane(appearance.plane) || buffer.uses_color_matrices != !!appearance.color_matrix) {
 						if(buffer_index) {
 							buffer.add_draw(commands, 0, buffer_index);
 							buffer_index = 0;
 						}
 						buffer.atlas = appearance.icon_state_dir.atlas_node?.atlas as DmiAtlas;
-						buffer.blend_mode = appearance.blend_mode || 1;
+						buffer.blend_mode = appearance.blend_mode;
+						buffer.plane = appearance.plane;
 						buffer.uses_color_matrices = !!appearance.color_matrix;
 					}
 					appearance.icon_state_dir.atlas_node.use_index = this.use_index;
@@ -477,13 +479,14 @@ export class DemoPlayer {
 				}
 				if(appearance.maptext && appearance.maptext.maptext) {
 					let node = this.get_maptext(appearance.maptext);
-					if(buffer.atlas != node.atlas || (buffer.blend_mode || 1) != (appearance.blend_mode || 1) || buffer.uses_color_matrices != !!appearance.color_matrix) {
+					if(buffer.atlas != node.atlas || Appearance.is_lighting_plane(buffer.plane) != Appearance.is_lighting_plane(appearance.plane) || buffer.uses_color_matrices != !!appearance.color_matrix) {
 						if(buffer_index) {
 							buffer.add_draw(commands, 0, buffer_index);
 							buffer_index = 0;
 						}
 						buffer.atlas = node.atlas as DmiAtlas;
-						buffer.blend_mode = appearance.blend_mode || 1;
+						buffer.blend_mode = appearance.blend_mode;
+						buffer.plane = appearance.plane;
 						buffer.uses_color_matrices = !!appearance.color_matrix;
 					}
 					node.use_index = this.use_index;
@@ -976,6 +979,11 @@ export class DemoPlayer {
 		this.see_invisible = vision_setting;
 		this.change_counter++;
 	}
+	
+	dump_textures() {
+		this.ui?.dump_textures();
+		this.change_counter++;
+	}
 }
 
 export abstract class Renderable {
@@ -1041,7 +1049,7 @@ export class Atom extends Renderable {
 
 	get_click_target() : Atom|null {return this;}
 
-	get_appearance(player: DemoPlayer, see_invisible = 101, vis_contents_depth = 100): Appearance | null {
+	get_appearance(player: DemoPlayer, see_invisible = SeeInvisibility.INVISIBILITY_ABSTRACT, vis_contents_depth = 100): Appearance | null {
 		if(vis_contents_depth <= 0) {
 			console.warn(`Deep (possibly looping) vis_contents/images detected at [0x${this.ref.toString(16)}]. Pruning.`);
 			this.vis_contents = empty_arr;
@@ -1166,7 +1174,7 @@ export class OverlayProxy extends Renderable {
 	get_offset(player:DemoPlayer) : [number,number]  {
 		return this.parent.get_offset(player);
 	}
-	get_appearance(player: DemoPlayer, see_invisible = 101): Appearance | null {
+	get_appearance(player: DemoPlayer, see_invisible = SeeInvisibility.INVISIBILITY_ABSTRACT): Appearance | null {
 		return this.appearance;
 	}
 	is_screen_obj(): boolean {

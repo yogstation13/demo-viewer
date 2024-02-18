@@ -193,4 +193,7 @@ export class DemoPlayerUi {
 	handle_sounds(sounds : DemoSound[]) : void {
 		this.sound_player.handle_sounds(sounds);
 	}
+	async dump_textures() {
+		this.gl_holder.dump_textures();
+	}
 }

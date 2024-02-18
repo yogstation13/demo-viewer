@@ -1,5 +1,5 @@
 import { IconStateDir } from "../player/rendering/icon";
-import { Planes, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM } from "./constants";
+import { BlendMode, Planes, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM } from "./constants";
 import { Matrix, matrix_invert, matrix_is_identity, matrix_multiply } from "./matrix";
 
 export enum FilterType {
@@ -175,7 +175,7 @@ export type TransitionalAppearance = BaseAppearance<TransitionalAppearance|Appea
 
 export namespace Appearance {
 	const empty_arr : [] = [];
-	export function resolve_plane(plane : number, parent_plane = 0) : number {
+	export function resolve_plane(plane : number, parent_plane = Planes.GAME_PLANE) : number {
 		if(parent_plane < Planes.LOWEST_EVER_PLANE || parent_plane > Planes.HIGHEST_EVER_PLANE) parent_plane = resolve_plane(parent_plane);
 		if(plane < Planes.LOWEST_EVER_PLANE || plane > Planes.HIGHEST_EVER_PLANE) {
 			plane = ((parent_plane + plane + 32767) << 16) >> 16;
@@ -190,7 +190,10 @@ export namespace Appearance {
 	 * @returns TRUE if the plane value falls within the range of Byond lighting planes, FALSE if the plane is anything else
 	 */
 	export function is_lighting_plane(plane : number): boolean {
-		return (plane >= Planes.EMISSIVE_BLOCKER_PLANE && plane <= Planes.O_LIGHTING_VISUAL_PLANE)
+		if(plane < Planes.LOWEST_EVER_PLANE || plane > Planes.HIGHEST_EVER_PLANE) {
+			plane = plane % (Planes.HIGHEST_EVER_PLANE - Planes.LOWEST_EVER_PLANE);
+		}
+		return (plane >= Planes.LIGHTING_PLANE && plane <= Planes.LIGHT_MASK_PLANE)
 	}
 
 	export function get_appearance_parts(appearance : Appearance) {
@@ -205,8 +208,21 @@ export namespace Appearance {
 				appearances.push(...get_appearance_parts(underlay));
 			}
 		}
-		appearances.push(appearance)
-		for(let overlay of [...appearance.overlays].sort((a,b) => {
+		appearances.push(appearance);
+		
+		/**
+		This is monster's original sort method which works on some browsers, but not all because it doesn't have all 3 cases required to uphold symmetry.
+		The cases required for a complete custom sort are
+		
+		|	compareFn(a, b)	| return value	|			sort order
+		|					|		> 0 	|	sort a after b, e.g. [b, a]
+		|					|		< 0 	|	sort a before b, e.g. [a, b]
+		|					|		=== 0 	|	keep original order of a and b
+		
+		So the issue is that monster's only ever returned negatives or 0, so the lacking positive result would break some browser's js engine like firefox.
+		Whereas chromium based browsers (i.e. Google Chrome, Microsoft Edge) would function as intended.
+		
+		const appearances_to_sort = [...appearance.overlays].sort((a,b) => {
 			let a_layer = a.layer < 0 ? appearance.layer : a.layer;
 			let b_layer = b.layer < 0 ? appearance.layer : b.layer;
 			if(a_layer < b_layer)
@@ -216,7 +232,31 @@ export namespace Appearance {
 			if(a_float_layer < b_float_layer)
 				return a_float_layer - b_float_layer;
 			return 0;
-		})) {
+		})
+		 
+		*/
+
+		//To circumvent the sorting issues, we're going to split the possible layers into 2 arrays. 
+		//1 for regular layers which have positive values and 1 for float layers which have negative values
+		const regular_layers = appearance.overlays.filter((overlay) => overlay.layer >= 0);
+		const float_layers = appearance.overlays.filter((overlay) => overlay.layer < 0);
+		
+		//sort by descending order for regular layers
+		regular_layers.sort((a,b) => {
+			return a.layer - b.layer;
+		});
+		
+		//sort by ascending order for float layers
+		float_layers.sort((a,b) => {
+			return a.layer - b.layer;
+		});
+		
+		//now combine the arrays with regular layers first.
+		const appearances_to_sort = regular_layers.concat(float_layers);
+		
+		//Resume monster's code
+
+		for(let overlay of appearances_to_sort) {
 			overlay = overlay_inherit(appearance, overlay);
 			if(resolve_plane(overlay.plane, appearance.plane) != resolve_plane(appearance.plane)) {
 				float_appearances.push(overlay);
@@ -267,10 +307,10 @@ export namespace Appearance {
 			}
 			overlay.color_alpha = color_alpha;
 		}
-		if(overlay.blend_mode == 0 && appearance.blend_mode > 0) {
-			clone();
-			overlay.blend_mode = appearance.blend_mode;
-		}
+		// if(appearance.blend_mode == BlendMode.DEFAULT && overlay.blend_mode != BlendMode.DEFAULT) {
+		// 	clone();
+		
+		// }
 		if(overlay.plane < Planes.LOWEST_EVER_PLANE || overlay.plane > Planes.HIGHEST_EVER_PLANE) {
 			clone();
 			overlay.plane = resolve_plane(overlay.plane, appearance.plane);
@@ -405,7 +445,7 @@ export namespace ReaderAppearance {
 		pixel_y: 0,
 		pixel_z: 0,
 		pixel_w: 0,
-		blend_mode: 0,
+		blend_mode: BlendMode.DEFAULT,
 		glide_size: 8,
 		screen_loc: null,
 		transform: [1,0,0,0,1,0],

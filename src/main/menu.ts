@@ -82,6 +82,10 @@ export class MainMenu extends Menu {
 			this.ui.player.toggle_darkness();
 			this.close();
 		});
+		this.add_basic_button("Dump Textures", null, () => {
+			this.ui.player.dump_textures();
+			this.close();
+		});
 	}
 }
 
