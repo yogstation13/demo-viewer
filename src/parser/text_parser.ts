@@ -1,7 +1,7 @@
 import { normalize_ref } from "../misc/ref";
-import { ReaderAppearance } from "../misc/appearance";
+import { Appearance, ReaderAppearance } from "../misc/appearance";
 import { DemoParser } from "./base_parser";
-import { Planes } from "../misc/constants";
+import { BlendMode, Planes, SeeInvisibility } from "../misc/constants";
 
 const MIN_VERSION = 1;
 const MAX_VERSION = 1;
@@ -248,7 +248,7 @@ export class DemoParserText extends DemoParser {
 			icon_state: `${(((x + y) ^ ~(x * y) + z) % 25 + 25) % 25}`,
 			name: 'space',
 			layer: 1.8,
-			plane: Planes.SPACE_PLANE,
+			plane: Planes.PLANE_SPACE,
 		};
 	}
 
@@ -268,7 +268,7 @@ export class DemoParserText extends DemoParser {
 				icon_state: '1',
 				name: 'space',
 				layer: 1.8,
-				plane: Planes.SPACE_PLANE
+				plane: Planes.PLANE_SPACE
 			};
 			if(p.curr() == 't') {
 				p.idx++;
@@ -357,8 +357,25 @@ export class DemoParserText extends DemoParser {
 		if(p.read_next_or_end()) return appearance;
 		if(p.curr() != ';') {
 			appearance.plane = p.read_number();
-			if(appearance.plane == Planes.LIGHTING_PLANE) appearance.blend_mode = 4;
-			else appearance.blend_mode = 0;
+			switch(appearance.plane){
+				case Planes.EMISSIVE_PLANE: { 
+				   appearance.blend_mode = BlendMode.DEFAULT;
+				   appearance.invisibility = SeeInvisibility.INVISIBILITY_ABSTRACT
+				   break; 
+				}
+				case Planes.LIGHTING_PLANE: { 
+				   appearance.blend_mode = BlendMode.MULTIPLY; 
+				   break; 
+				}
+				case Planes.O_LIGHTING_VISUAL_PLANE: { 
+				   appearance.blend_mode = BlendMode.MULTIPLY;
+				   break; 
+				}
+				default: { 
+				   appearance.blend_mode = BlendMode.DEFAULT;
+				   break; 
+				}
+			}
 		}
 		if(p.read_next_or_end()) return appearance;
 		if(p.curr() != ';') appearance.dir = p.read_number();

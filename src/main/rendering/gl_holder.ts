@@ -4,6 +4,7 @@ import { CopyShader, get_copy_shader, get_icon_shader, IconShader, ShaderHolder 
 import { RenderingCmd } from "../../player/rendering/commands";
 import { ViewportElement } from "../viewport";
 import { render_maptext } from "./maptext";
+import { BlendMode } from "../../misc/constants";
 
 export class DemoPlayerGlHolder {
 	gl : WebGLRenderingContext;
@@ -16,6 +17,7 @@ export class DemoPlayerGlHolder {
 	max_texture_size : number;
 	copy_framebuffer : WebGLFramebuffer;
 	white_texture : WebGLTexture;
+	canvas_copy : WebGLTexture;
 
 	shader : IconShader;
 	shader_matrix : IconShader;
@@ -27,7 +29,7 @@ export class DemoPlayerGlHolder {
 		if(this.gl2) {
 			this.gl = this.gl2;
 		} else {
-			let gl = canvas.getContext("webgl", {desynchronized: true});
+			let gl = canvas.getContext("webgl", {desynchronized: true, alpha: false});
 			if(!gl) throw new Error("Could not initialize WebGL");
 			this.gl = gl;
 		}
@@ -49,10 +51,14 @@ export class DemoPlayerGlHolder {
 
 		this.white_texture = not_null(gl.createTexture());
 		gl.bindTexture(gl.TEXTURE_2D, this.white_texture);
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255,255,255,255]));
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0,0]));
 		gl.bindTexture(gl.TEXTURE_2D, null);
 		this.copy_framebuffer = not_null(gl.createFramebuffer());
 		this.max_texture_size = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), 32768);
+
+		this.canvas_copy = not_null(gl.createTexture());
+		gl.activeTexture(gl.TEXTURE1);
+		gl.bindTexture(gl.TEXTURE_2D, this.canvas_copy);
 
 		this.square_buffer = not_null(gl.createBuffer());
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.square_buffer);
@@ -169,7 +175,7 @@ export class DemoPlayerGlHolder {
 					}
 				}
 				gl.bindTexture(gl.TEXTURE_2D, null);
-			} else if(cmd.cmd == "atlestexcopywithin") {
+			} else if(cmd.cmd == "atlastexcopywithin") {
 				let tex = not_null(this.atlas_textures[cmd.index]);
 				let shader = this.shader_copy;
 				this.set_shader(shader);
@@ -257,6 +263,8 @@ export class DemoPlayerGlHolder {
 				ia.vertexAttribDivisorANGLE(shader.a_layer, 1);
 				ia.drawArraysInstancedANGLE(gl.TRIANGLES, 0, 6, cmd.num_elements);
 				gl.deleteBuffer(buf);
+				// gl.activeTexture(gl.TEXTURE0 + 1);
+				// gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, gl.canvas);
 			} else if(cmd.cmd == "copytoviewport") {
 				let this_viewport_pixel = curr_viewport_pixel;
 				let this_viewport = curr_viewport;
@@ -338,26 +346,54 @@ export class DemoPlayerGlHolder {
 	// this one was fun - I made test cases in BYOND and took screenshots and tried to reverse-engineer the blending equations from that.
 	// fun fact BYOND uses premultiplied alpha. However, when you 
 	set_blend_mode(blend_mode : number) : void{
-		if(blend_mode == 0) blend_mode = 1;
+		//if(blend_mode == 0) blend_mode = 1;
 		if(blend_mode == this.curr_blend_mode) return;
 		this.curr_blend_mode = blend_mode;
 		const gl = this.gl;
-		if(blend_mode == 2) { // BLEND_ADD
-			gl.blendEquation(gl.FUNC_ADD);
-			gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		} else if(blend_mode == 3) { // BLEND_SUBTRACT
-			gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
-			gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
-		} else if(blend_mode == 4) { // BLEND_MULTIPLY
-			gl.blendEquation(gl.FUNC_ADD);
-			gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA); // fun fact if you do the math everything cancels out so that the destination alpha doesn't change at all.
-		} else if(blend_mode == 5) { // BLEND_INSET_OVERLAY
-			// TODO figure out if this is actually right
-			gl.blendEquation(gl.FUNC_ADD);
-			gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE)
-		} else { // BLEND_OVERLAY or BLEND_DEFAULT
-			gl.blendEquation(gl.FUNC_ADD);
-			gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		switch(blend_mode){
+			case BlendMode.DEFAULT: {
+				gl.blendEquation(gl.FUNC_ADD);
+				gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+				break;
+			}
+			case BlendMode.ADD: {
+				gl.blendEquation(gl.FUNC_ADD);
+				gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+				break;
+			}
+			case BlendMode.SUBTRACT: {
+				gl.blendEquation(gl.FUNC_REVERSE_SUBTRACT);
+				gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+				break;
+			}
+			case BlendMode.MULTIPLY: {
+				gl.blendEquation(gl.FUNC_ADD);
+				gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA); // fun fact if you do the math everything cancels out so that the destination alpha doesn't change at all.
+				break;
+			}
+			case BlendMode.INSET_OVERLAY: {
+				// TODO figure out if this is actually right
+				gl.blendEquation(gl.FUNC_ADD);
+				gl.blendFuncSeparate(gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE)
+				break;
+			}
+			case BlendMode.ALPHA: {
+				gl.blendEquation(gl.FUNC_ADD);
+				//gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.DST_ALPHA, gl.ZERO)
+				gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA);
+				break;
+			}
+			case BlendMode.ALPHA_INVERTED: {
+				gl.blendEquation(gl.FUNC_ADD);
+				gl.blendFuncSeparate(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE)
+				break;
+			}
+			//Just in case there's a weird value we'll use the default
+			default: {
+				gl.blendEquation(gl.FUNC_ADD);
+				gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+				break;
+			}
 		}
 	}
 

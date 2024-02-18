@@ -1,5 +1,5 @@
 import { IconStateDir } from "../player/rendering/icon";
-import { Planes, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM } from "./constants";
+import { BlendMode, Planes, RESET_ALPHA, RESET_COLOR, RESET_TRANSFORM } from "./constants";
 import { Matrix, matrix_invert, matrix_is_identity, matrix_multiply } from "./matrix";
 
 export enum FilterType {
@@ -175,7 +175,7 @@ export type TransitionalAppearance = BaseAppearance<TransitionalAppearance|Appea
 
 export namespace Appearance {
 	const empty_arr : [] = [];
-	export function resolve_plane(plane : number, parent_plane = 0) : number {
+	export function resolve_plane(plane : number, parent_plane = Planes.GAME_PLANE) : number {
 		if(parent_plane < Planes.LOWEST_EVER_PLANE || parent_plane > Planes.HIGHEST_EVER_PLANE) parent_plane = resolve_plane(parent_plane);
 		if(plane < Planes.LOWEST_EVER_PLANE || plane > Planes.HIGHEST_EVER_PLANE) {
 			plane = ((parent_plane + plane + 32767) << 16) >> 16;
@@ -190,7 +190,10 @@ export namespace Appearance {
 	 * @returns TRUE if the plane value falls within the range of Byond lighting planes, FALSE if the plane is anything else
 	 */
 	export function is_lighting_plane(plane : number): boolean {
-		return (plane >= Planes.EMISSIVE_BLOCKER_PLANE && plane <= Planes.O_LIGHTING_VISUAL_PLANE)
+		if(plane < Planes.LOWEST_EVER_PLANE || plane > Planes.HIGHEST_EVER_PLANE) {
+			plane = plane % (Planes.HIGHEST_EVER_PLANE - Planes.LOWEST_EVER_PLANE);
+		}
+		return (plane >= Planes.LIGHTING_PLANE && plane <= Planes.LIGHT_MASK_PLANE)
 	}
 
 	export function get_appearance_parts(appearance : Appearance) {
@@ -304,10 +307,10 @@ export namespace Appearance {
 			}
 			overlay.color_alpha = color_alpha;
 		}
-		if(overlay.blend_mode == 0 && appearance.blend_mode > 0) {
-			clone();
-			overlay.blend_mode = appearance.blend_mode;
-		}
+		// if(appearance.blend_mode == BlendMode.DEFAULT && overlay.blend_mode != BlendMode.DEFAULT) {
+		// 	clone();
+		
+		// }
 		if(overlay.plane < Planes.LOWEST_EVER_PLANE || overlay.plane > Planes.HIGHEST_EVER_PLANE) {
 			clone();
 			overlay.plane = resolve_plane(overlay.plane, appearance.plane);
@@ -442,7 +445,7 @@ export namespace ReaderAppearance {
 		pixel_y: 0,
 		pixel_z: 0,
 		pixel_w: 0,
-		blend_mode: 0,
+		blend_mode: BlendMode.DEFAULT,
 		glide_size: 8,
 		screen_loc: null,
 		transform: [1,0,0,0,1,0],

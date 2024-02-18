@@ -1,5 +1,5 @@
-import { Filter, FilterType, ReaderAppearance } from "../misc/appearance";
-import { Planes, SOUND_MUTE, SOUND_PAUSED, SOUND_STREAM, SOUND_UPDATE } from "../misc/constants";
+import { Appearance, Filter, FilterType, ReaderAppearance } from "../misc/appearance";
+import { BlendMode, Planes, SOUND_MUTE, SOUND_PAUSED, SOUND_STREAM, SOUND_UPDATE } from "../misc/constants";
 import { Matrix } from "../misc/matrix";
 import { DemoParser, ReaderDemoAnimation, ReaderDemoAnimationFrame } from "./base_parser";
 import { RevData } from "./interface";
@@ -542,14 +542,14 @@ export class DemoParserBinary extends DemoParser {
 					if(filter) filters.push(filter);
 				}
 				// Uncomment this once filters are actually being used somewhere
-				//if(filters.length) appearance.filters = filters;
+				if(filters.length) appearance.filters = filters;
 			}
 			appearance.override = !!(daf & 0x40000000);
 			if(daf & 0x80000000) {
 				appearance.vis_flags = p.read_uint8();
 			}
 
-			if(appearance.plane == Planes.LIGHTING_PLANE && !appearance.screen_loc) appearance.blend_mode = 4; // This only exists because I CBA to implement plane masters right now
+			if(Appearance.is_lighting_plane(appearance.plane) && !appearance.screen_loc) appearance.blend_mode = BlendMode.MULTIPLY; // This only exists because I CBA to implement plane masters right now
 			return this.appearance_refs[appearance_ref] = this.appearance_id(appearance);
 		} else {
 			if(appearance_ref == 0xFFFF) return null;

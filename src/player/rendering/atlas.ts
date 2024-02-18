@@ -18,7 +18,7 @@ export class Atlas {
 		return root.alloc(width, height);
 	}
 	expand() : void {
-		console.log("Resizing atlas to ", 1, this.size << 1);
+		console.log("Resizing atlas to ", this.size << 1);
 		this.size_index++;
 		let oldroot = this.root;
 		let newroot = new AtlasNode(this, undefined, 0, 0, this.size_index);
@@ -92,7 +92,7 @@ export class DmiAtlas extends Atlas {
 			if(!from_node || !to_node) continue;
 			if(!this.copy_within_command) {
 				this.copy_within_command = {
-					cmd: "atlestexcopywithin",
+					cmd: "atlastexcopywithin",
 					index: this.tex_index,
 					parts: []
 				};
