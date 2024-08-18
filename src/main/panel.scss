@@ -164,6 +164,7 @@
 .positioned {
 	&.panel_container {
 		display: block;
+		align-content: start;
 	}
 	.panel {
 		position: sticky;
