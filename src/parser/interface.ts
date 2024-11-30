@@ -1,4 +1,5 @@
 import xxhash from "xxhash-wasm";
+import { compileString as compileSassString } from "sass";
 import { ReaderAppearance } from "../misc/appearance";
 import { create_exposed_promise } from "../misc/exposed_promise";
 import { DemoParser, ReaderDemoBatchData } from "./base_parser";
@@ -30,8 +31,10 @@ export class DemoParserInterface {
 	public rev_data = create_exposed_promise<RevData>();
 	public chat_css = this.rev_data.then(async commit => {
 		let css_paths : (string|string[])[] = [
-			"tgui/packages/tgui-panel/styles/goon/chat-dark.scss",
 			"code/modules/goonchat/browserassets/css/browserOutput.css",
+			"tgui/packages/tgui-panel/styles/goon/chat-dark.scss",
+			"tgui/packages/tgui-panel/styles/tgchat/chat-dark.scss",
+			"tgui/packages/tgui-panel/styles/chat-format/chat-dark-theme.scss",
 		];
 		let chat_css = "";
 		outer_loop: for(let path_list of css_paths) {
@@ -39,9 +42,15 @@ export class DemoParserInterface {
 				chat_css = "";
 				if(!(path_list instanceof Array)) path_list = [path_list];
 				for(let path of path_list) {
-					let res = await fetch(`https://cdn.jsdelivr.net/gh/${commit.repo}@${commit.commit}/${path}`);
+					const url = `https://cdn.jsdelivr.net/gh/${commit.repo}@${commit.commit}/${path}`;
+					let res = await fetch(url);
 					if(res.ok) {
-						chat_css += await res.text();
+						const stylesheet = await res.text();
+						if(path.endsWith(".scss")) {
+							chat_css += compileSassString(stylesheet, { url: new URL(url) }).css;
+						} else {
+							chat_css += stylesheet;
+						}
 					} else {
 						continue outer_loop;
 					}
