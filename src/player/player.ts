@@ -788,7 +788,7 @@ export class DemoPlayer {
 			let frame = this.frames[i];
 			if(!frame.chat) continue;
 			for(let chat of frame.chat) {
-				if(chat.clients.includes(target) || chat.clients.includes("world")) {
+				if(chat.clients.includes("world") || chat.clients.includes(target == undefined ? "global" : target)) {
 					messages.push({
 						message: chat.message,
 						frame_index: i,
